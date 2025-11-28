@@ -33,6 +33,7 @@ import {
   ScanSearch,
   QrCode,
   Camera,
+  FileText,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { Archive } from '../api/client';
@@ -48,6 +49,7 @@ import { BatchTagModal } from '../components/BatchTagModal';
 import { CalendarView } from '../components/CalendarView';
 import { QRCodeModal } from '../components/QRCodeModal';
 import { PhotoGalleryModal } from '../components/PhotoGalleryModal';
+import { ProjectPageModal } from '../components/ProjectPageModal';
 import { useToast } from '../contexts/ToastContext';
 
 function formatFileSize(bytes: number): string {
@@ -95,6 +97,7 @@ function ArchiveCard({
   const [showTimelapse, setShowTimelapse] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
+  const [showProjectPage, setShowProjectPage] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const timelapseScanMutation = useMutation({
@@ -209,6 +212,11 @@ function ArchiveCard({
       icon: <Camera className="w-4 h-4" />,
       onClick: () => setShowPhotos(true),
       disabled: !archive.photos?.length,
+    },
+    {
+      label: 'Project Page',
+      icon: <FileText className="w-4 h-4" />,
+      onClick: () => setShowProjectPage(true),
     },
     { label: '', divider: true, onClick: () => {} },
     {
@@ -596,6 +604,15 @@ function ArchiveCard({
               showToast('Failed to delete photo', 'error');
             }
           }}
+        />
+      )}
+
+      {/* Project Page Modal */}
+      {showProjectPage && (
+        <ProjectPageModal
+          archiveId={archive.id}
+          archiveName={archive.print_name || archive.filename}
+          onClose={() => setShowProjectPage(false)}
         />
       )}
     </Card>

@@ -286,6 +286,45 @@ export const api = {
       has_gcode: boolean;
       build_volume: { x: number; y: number; z: number };
     }>(`/archives/${id}/capabilities`),
+  // Project Page
+  getArchiveProjectPage: (id: number) =>
+    request<{
+      title: string | null;
+      description: string | null;
+      designer: string | null;
+      designer_user_id: string | null;
+      license: string | null;
+      copyright: string | null;
+      creation_date: string | null;
+      modification_date: string | null;
+      origin: string | null;
+      profile_title: string | null;
+      profile_description: string | null;
+      profile_cover: string | null;
+      profile_user_id: string | null;
+      profile_user_name: string | null;
+      design_model_id: string | null;
+      design_profile_id: string | null;
+      design_region: string | null;
+      model_pictures: Array<{ name: string; path: string; url: string }>;
+      profile_pictures: Array<{ name: string; path: string; url: string }>;
+      thumbnails: Array<{ name: string; path: string; url: string }>;
+    }>(`/archives/${id}/project-page`),
+  updateArchiveProjectPage: (id: number, data: {
+    title?: string;
+    description?: string;
+    designer?: string;
+    license?: string;
+    copyright?: string;
+    profile_title?: string;
+    profile_description?: string;
+  }) =>
+    request(`/archives/${id}/project-page`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  getArchiveProjectImageUrl: (archiveId: number, imagePath: string) =>
+    `${API_BASE}/archives/${archiveId}/project-image/${encodeURIComponent(imagePath)}`,
   getArchiveForSlicer: (id: number, filename: string) =>
     `${API_BASE}/archives/${id}/file/${encodeURIComponent(filename.endsWith('.3mf') ? filename : filename + '.3mf')}`,
   reprintArchive: (archiveId: number, printerId: number) =>

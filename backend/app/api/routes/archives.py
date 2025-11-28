@@ -888,3 +888,89 @@ async def reprint_archive(
         "archive_id": archive_id,
         "filename": archive.filename,
     }
+
+
+# =============================================================================
+# Project Page API
+# =============================================================================
+
+@router.get("/{archive_id}/project-page")
+async def get_project_page(archive_id: int, db: AsyncSession = Depends(get_db)):
+    """Get the project page data from the 3MF file."""
+    from backend.app.services.archive import ProjectPageParser
+    from backend.app.schemas.archive import ProjectPageResponse
+
+    service = ArchiveService(db)
+    archive = await service.get_archive(archive_id)
+    if not archive:
+        raise HTTPException(404, "Archive not found")
+
+    file_path = settings.base_dir / archive.file_path
+    if not file_path.exists():
+        raise HTTPException(404, "Archive file not found")
+
+    parser = ProjectPageParser(file_path)
+    data = parser.parse(archive_id)
+
+    return ProjectPageResponse(**data)
+
+
+@router.patch("/{archive_id}/project-page")
+async def update_project_page(
+    archive_id: int,
+    update_data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update project page metadata in the 3MF file."""
+    from backend.app.services.archive import ProjectPageParser
+
+    service = ArchiveService(db)
+    archive = await service.get_archive(archive_id)
+    if not archive:
+        raise HTTPException(404, "Archive not found")
+
+    file_path = settings.base_dir / archive.file_path
+    if not file_path.exists():
+        raise HTTPException(404, "Archive file not found")
+
+    parser = ProjectPageParser(file_path)
+    success = parser.update_metadata(update_data)
+
+    if not success:
+        raise HTTPException(500, "Failed to update project page")
+
+    # Return updated data
+    data = parser.parse(archive_id)
+    return data
+
+
+@router.get("/{archive_id}/project-image/{image_path:path}")
+async def get_project_image(
+    archive_id: int,
+    image_path: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get an image from the 3MF project page."""
+    from backend.app.services.archive import ProjectPageParser
+
+    service = ArchiveService(db)
+    archive = await service.get_archive(archive_id)
+    if not archive:
+        raise HTTPException(404, "Archive not found")
+
+    file_path = settings.base_dir / archive.file_path
+    if not file_path.exists():
+        raise HTTPException(404, "Archive file not found")
+
+    parser = ProjectPageParser(file_path)
+    result = parser.get_image(image_path)
+
+    if not result:
+        raise HTTPException(404, "Image not found in 3MF file")
+
+    image_data, content_type = result
+    return Response(
+        content=image_data,
+        media_type=content_type,
+        headers={"Cache-Control": "max-age=3600"},
+    )
