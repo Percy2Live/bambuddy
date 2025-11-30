@@ -27,6 +27,7 @@ class PrinterUpdate(BaseModel):
 class PrinterResponse(PrinterBase):
     id: int
     is_active: bool
+    nozzle_count: int = 1  # 1 or 2, auto-detected from MQTT
     created_at: datetime
     updated_at: datetime
 

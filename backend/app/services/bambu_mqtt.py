@@ -32,6 +32,22 @@ class HMSError:
 
 
 @dataclass
+class KProfile:
+    """Pressure advance (K) calibration profile from printer."""
+    slot_id: int
+    extruder_id: int
+    nozzle_id: str
+    nozzle_diameter: str
+    filament_id: str
+    name: str
+    k_value: str
+    n_coef: str = "0.000000"
+    ams_id: int = 0
+    tray_id: int = -1
+    setting_id: str | None = None
+
+
+@dataclass
 class PrinterState:
     connected: bool = False
     state: str = "unknown"
@@ -46,6 +62,7 @@ class PrinterState:
     gcode_file: str | None = None
     subtask_id: str | None = None
     hms_errors: list = field(default_factory=list)  # List of HMSError
+    kprofiles: list = field(default_factory=list)  # List of KProfile
 
 
 class BambuMQTTClient:
@@ -79,6 +96,11 @@ class BambuMQTTClient:
         self._message_log: deque[MQTTLogEntry] = deque(maxlen=100)
         self._logging_enabled: bool = False
         self._last_message_time: float = 0.0  # Track when we last received a message
+
+        # K-profile command tracking
+        self._sequence_id: int = 0
+        self._pending_kprofile_response: asyncio.Event | None = None
+        self._kprofile_response_data: list | None = None
 
     @property
     def topic_subscribe(self) -> str:
@@ -140,6 +162,11 @@ class BambuMQTTClient:
                     f"[{self.serial_number}] Received gcode_state: {print_data.get('gcode_state')}, "
                     f"gcode_file: {print_data.get('gcode_file')}, subtask_name: {print_data.get('subtask_name')}"
                 )
+
+            # Check for K-profile response (extrusion_cali)
+            if "command" in print_data and print_data.get("command") == "extrusion_cali_get":
+                self._handle_kprofile_response(print_data)
+
             self._update_state(print_data)
 
     def _update_state(self, data: dict):
@@ -437,3 +464,200 @@ class BambuMQTTClient:
     def logging_enabled(self) -> bool:
         """Check if logging is enabled."""
         return self._logging_enabled
+
+    def _handle_kprofile_response(self, data: dict):
+        """Handle K-profile response from printer."""
+        filaments = data.get("filaments", [])
+        profiles = []
+
+        # Log first profile to see what fields the printer returns
+        if filaments and isinstance(filaments[0], dict):
+            logger.debug(f"[{self.serial_number}] Raw K-profile fields: {list(filaments[0].keys())}")
+            logger.debug(f"[{self.serial_number}] First K-profile: {filaments[0]}")
+
+        for i, f in enumerate(filaments):
+            if isinstance(f, dict):
+                try:
+                    # cali_idx is the actual slot/calibration index from the printer
+                    cali_idx = f.get("cali_idx", i)
+                    profiles.append(KProfile(
+                        slot_id=cali_idx,
+                        extruder_id=int(f.get("extruder_id", 0)),
+                        nozzle_id=str(f.get("nozzle_id", "")),
+                        nozzle_diameter=str(f.get("nozzle_diameter", "0.4")),
+                        filament_id=str(f.get("filament_id", "")),
+                        name=str(f.get("name", "")),
+                        k_value=str(f.get("k_value", "0.000000")),
+                        n_coef=str(f.get("n_coef", "0.000000")),
+                        ams_id=int(f.get("ams_id", 0)),
+                        tray_id=int(f.get("tray_id", -1)),
+                        setting_id=f.get("setting_id"),
+                    ))
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Failed to parse K-profile: {e}")
+
+        self.state.kprofiles = profiles
+        self._kprofile_response_data = profiles
+
+        # Signal that we received the response
+        if self._pending_kprofile_response:
+            self._pending_kprofile_response.set()
+
+        logger.info(f"[{self.serial_number}] Received {len(profiles)} K-profiles")
+
+    async def get_kprofiles(self, nozzle_diameter: str = "0.4", timeout: float = 5.0) -> list[KProfile]:
+        """Request K-profiles from the printer.
+
+        Args:
+            nozzle_diameter: Filter by nozzle diameter (e.g., "0.4")
+            timeout: Timeout in seconds to wait for response
+
+        Returns:
+            List of KProfile objects
+        """
+        if not self._client or not self.state.connected:
+            logger.warning(f"[{self.serial_number}] Cannot get K-profiles: not connected")
+            return []
+
+        # Set up response event
+        self._sequence_id += 1
+        self._pending_kprofile_response = asyncio.Event()
+        self._kprofile_response_data = None
+
+        # Send the command
+        command = {
+            "print": {
+                "command": "extrusion_cali_get",
+                "filament_id": "",
+                "nozzle_diameter": nozzle_diameter,
+                "sequence_id": str(self._sequence_id),
+            }
+        }
+
+        logger.info(f"[{self.serial_number}] Requesting K-profiles for nozzle {nozzle_diameter}")
+        self._client.publish(self.topic_publish, json.dumps(command))
+
+        # Wait for response
+        try:
+            await asyncio.wait_for(self._pending_kprofile_response.wait(), timeout=timeout)
+            return self._kprofile_response_data or []
+        except asyncio.TimeoutError:
+            logger.warning(f"[{self.serial_number}] Timeout waiting for K-profiles response")
+            return []
+        finally:
+            self._pending_kprofile_response = None
+
+    def set_kprofile(
+        self,
+        filament_id: str,
+        name: str,
+        k_value: str,
+        nozzle_diameter: str = "0.4",
+        nozzle_id: str = "HS00-0.4",
+        extruder_id: int = 0,
+        setting_id: str | None = None,
+        slot_id: int = 0,
+    ) -> bool:
+        """Set/update a K-profile on the printer.
+
+        Args:
+            filament_id: Bambu filament identifier
+            name: Profile name
+            k_value: Pressure advance value (e.g., "0.020000")
+            nozzle_diameter: Nozzle diameter (e.g., "0.4")
+            nozzle_id: Nozzle identifier (e.g., "HS00-0.4")
+            extruder_id: Extruder ID (0 or 1 for dual nozzle)
+            setting_id: Existing setting ID for updates, None for new
+            slot_id: Calibration index (cali_idx) for the profile
+
+        Returns:
+            True if command was sent, False otherwise
+        """
+        if not self._client or not self.state.connected:
+            logger.warning(f"[{self.serial_number}] Cannot set K-profile: not connected")
+            return False
+
+        self._sequence_id += 1
+
+        # Build the filament entry - printer uses cali_idx for profile identification
+        # For new profiles (slot_id=0), use cali_idx=-1 to tell printer to create new slot
+        cali_idx = -1 if slot_id == 0 else slot_id
+
+        # Generate a setting_id for new profiles (required by printer)
+        # Format: "PF" + 17 random digits
+        import random
+        if not setting_id and slot_id == 0:
+            setting_id = f"PF{random.randint(10000000000000000, 99999999999999999)}"
+
+        filament_entry = {
+            "ams_id": 0,
+            "cali_idx": cali_idx,
+            "extruder_id": extruder_id,
+            "filament_id": filament_id,
+            "k_value": k_value,
+            "n_coef": "0.000000",
+            "name": name,
+            "nozzle_diameter": nozzle_diameter,
+            "nozzle_id": nozzle_id,
+            "setting_id": setting_id,  # Always include setting_id
+            "tray_id": -1,
+        }
+
+        command = {
+            "print": {
+                "command": "extrusion_cali_set",
+                "filaments": [filament_entry],
+                "nozzle_diameter": nozzle_diameter,
+                "sequence_id": str(self._sequence_id),
+            }
+        }
+
+        command_json = json.dumps(command)
+        logger.info(f"[{self.serial_number}] Setting K-profile: {name} = {k_value} (cali_idx={cali_idx}, new={slot_id==0})")
+        logger.debug(f"[{self.serial_number}] K-profile command: {command_json}")
+        self._client.publish(self.topic_publish, command_json)
+        return True
+
+    def delete_kprofile(
+        self,
+        cali_idx: int,
+        filament_id: str,
+        nozzle_id: str,
+        nozzle_diameter: str = "0.4",
+        extruder_id: int = 0,
+    ) -> bool:
+        """Delete a K-profile from the printer.
+
+        Args:
+            cali_idx: The calibration index (slot_id) of the profile to delete
+            filament_id: Bambu filament identifier
+            nozzle_id: Nozzle identifier (e.g., "HH00-0.4")
+            nozzle_diameter: Nozzle diameter (e.g., "0.4")
+            extruder_id: Extruder ID (0 or 1 for dual nozzle)
+
+        Returns:
+            True if command was sent, False otherwise
+        """
+        if not self._client or not self.state.connected:
+            logger.warning(f"[{self.serial_number}] Cannot delete K-profile: not connected")
+            return False
+
+        self._sequence_id += 1
+
+        command = {
+            "print": {
+                "command": "extrusion_cali_del",
+                "sequence_id": str(self._sequence_id),
+                "extruder_id": extruder_id,
+                "nozzle_id": nozzle_id,
+                "filament_id": filament_id,
+                "cali_idx": cali_idx,
+                "nozzle_diameter": nozzle_diameter,
+            }
+        }
+
+        command_json = json.dumps(command)
+        logger.info(f"[{self.serial_number}] Deleting K-profile: cali_idx={cali_idx}, filament={filament_id}")
+        logger.debug(f"[{self.serial_number}] K-profile delete command: {command_json}")
+        self._client.publish(self.topic_publish, command_json)
+        return True

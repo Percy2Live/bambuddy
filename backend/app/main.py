@@ -54,7 +54,7 @@ from fastapi.responses import FileResponse
 from backend.app.core.database import init_db, async_session
 from sqlalchemy import select, or_
 from backend.app.core.websocket import ws_manager
-from backend.app.api.routes import printers, archives, websocket, filaments, cloud, smart_plugs, print_queue
+from backend.app.api.routes import printers, archives, websocket, filaments, cloud, smart_plugs, print_queue, kprofiles
 from backend.app.api.routes import settings as settings_routes
 from backend.app.services.printer_manager import (
     printer_manager,
@@ -96,6 +96,7 @@ def register_expected_print(printer_id: int, filename: str, archive_id: int):
 
 
 _last_status_broadcast: dict[int, str] = {}
+_nozzle_count_updated: set[int] = set()  # Track printers where we've updated nozzle_count
 
 async def on_printer_status_change(printer_id: int, state: PrinterState):
     """Handle printer status changes - broadcast via WebSocket."""
@@ -106,6 +107,23 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
     bed_temp = round(temps.get("bed", 0))
     nozzle_2_temp = round(temps.get("nozzle_2", 0)) if "nozzle_2" in temps else ""
     chamber_temp = round(temps.get("chamber", 0)) if "chamber" in temps else ""
+
+    # Auto-detect dual-nozzle printers from MQTT temperature data
+    if "nozzle_2" in temps and printer_id not in _nozzle_count_updated:
+        _nozzle_count_updated.add(printer_id)
+        # Update nozzle_count in database
+        async with async_session() as db:
+            from backend.app.models.printer import Printer
+            result = await db.execute(
+                select(Printer).where(Printer.id == printer_id)
+            )
+            printer = result.scalar_one_or_none()
+            if printer and printer.nozzle_count != 2:
+                printer.nozzle_count = 2
+                await db.commit()
+                logging.getLogger(__name__).info(
+                    f"Auto-detected dual-nozzle printer {printer_id}, updated nozzle_count=2"
+                )
 
     status_key = (
         f"{state.connected}:{state.state}:{state.progress}:{state.layer_num}:"
@@ -736,6 +754,7 @@ app.include_router(settings_routes.router, prefix=app_settings.api_prefix)
 app.include_router(cloud.router, prefix=app_settings.api_prefix)
 app.include_router(smart_plugs.router, prefix=app_settings.api_prefix)
 app.include_router(print_queue.router, prefix=app_settings.api_prefix)
+app.include_router(kprofiles.router, prefix=app_settings.api_prefix)
 app.include_router(websocket.router, prefix=app_settings.api_prefix)
 
 

@@ -112,6 +112,10 @@ class PrinterManager:
             return self._clients[printer_id].state.connected
         return False
 
+    def get_client(self, printer_id: int) -> BambuMQTTClient | None:
+        """Get the MQTT client for a printer."""
+        return self._clients.get(printer_id)
+
     def mark_printer_offline(self, printer_id: int):
         """Mark a printer as offline and trigger status callback.
 

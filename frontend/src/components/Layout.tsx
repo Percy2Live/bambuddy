@@ -16,7 +16,7 @@ export const defaultNavItems: NavItem[] = [
   { id: 'archives', to: '/archives', icon: Archive, label: 'Archives' },
   { id: 'queue', to: '/queue', icon: Calendar, label: 'Queue' },
   { id: 'stats', to: '/stats', icon: BarChart3, label: 'Statistics' },
-  { id: 'cloud', to: '/cloud', icon: Cloud, label: 'Cloud Profiles' },
+  { id: 'profiles', to: '/profiles', icon: Cloud, label: 'Profiles' },
   { id: 'settings', to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

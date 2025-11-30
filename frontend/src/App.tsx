@@ -6,7 +6,7 @@ import { ArchivesPage } from './pages/ArchivesPage';
 import { QueuePage } from './pages/QueuePage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { CloudProfilesPage } from './pages/CloudProfilesPage';
+import { ProfilesPage } from './pages/ProfilesPage';
 import { useWebSocket } from './hooks/useWebSocket';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -38,7 +38,7 @@ function App() {
                   <Route path="archives" element={<ArchivesPage />} />
                   <Route path="queue" element={<QueuePage />} />
                   <Route path="stats" element={<StatsPage />} />
-                  <Route path="cloud" element={<CloudProfilesPage />} />
+                  <Route path="profiles" element={<ProfilesPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Routes>

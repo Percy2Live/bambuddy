@@ -28,6 +28,7 @@ export interface Printer {
   ip_address: string;
   access_code: string;
   model: string | null;
+  nozzle_count: number;  // 1 or 2, auto-detected from MQTT
   is_active: boolean;
   auto_archive: boolean;
   created_at: string;
@@ -309,6 +310,48 @@ export interface MQTTLogEntry {
 export interface MQTTLogsResponse {
   logging_enabled: boolean;
   logs: MQTTLogEntry[];
+}
+
+// K-Profile types
+export interface KProfile {
+  slot_id: number;
+  extruder_id: number;
+  nozzle_id: string;
+  nozzle_diameter: string;
+  filament_id: string;
+  name: string;
+  k_value: string;
+  n_coef: string;
+  ams_id: number;
+  tray_id: number;
+  setting_id: string | null;
+}
+
+export interface KProfileCreate {
+  slot_id?: number;  // Storage slot, 0 for new profiles
+  extruder_id?: number;
+  nozzle_id: string;
+  nozzle_diameter: string;
+  filament_id: string;
+  name: string;
+  k_value: string;
+  n_coef?: string;
+  ams_id?: number;
+  tray_id?: number;
+  setting_id?: string | null;
+}
+
+export interface KProfileDelete {
+  slot_id: number;  // cali_idx - calibration index to delete
+  extruder_id: number;
+  nozzle_id: string;  // e.g., "HH00-0.4"
+  nozzle_diameter: string;  // e.g., "0.4"
+  filament_id: string;  // Bambu filament identifier
+}
+
+export interface KProfilesResponse {
+  profiles: KProfile[];
+  nozzle_diameter: string;
 }
 
 // API functions
@@ -642,4 +685,18 @@ export const api = {
     request<{ message: string }>(`/queue/${id}/cancel`, { method: 'POST' }),
   stopQueueItem: (id: number) =>
     request<{ message: string }>(`/queue/${id}/stop`, { method: 'POST' }),
+
+  // K-Profiles
+  getKProfiles: (printerId: number, nozzleDiameter = '0.4') =>
+    request<KProfilesResponse>(`/printers/${printerId}/kprofiles/?nozzle_diameter=${nozzleDiameter}`),
+  setKProfile: (printerId: number, profile: KProfileCreate) =>
+    request<{ success: boolean; message: string }>(`/printers/${printerId}/kprofiles/`, {
+      method: 'POST',
+      body: JSON.stringify(profile),
+    }),
+  deleteKProfile: (printerId: number, profile: KProfileDelete) =>
+    request<{ success: boolean; message: string }>(`/printers/${printerId}/kprofiles/`, {
+      method: 'DELETE',
+      body: JSON.stringify(profile),
+    }),
 };

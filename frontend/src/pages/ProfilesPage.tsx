@@ -13,12 +13,16 @@ import {
   X,
   Key,
   RefreshCw,
+  Gauge,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { SlicerSetting, SlicerSettingsResponse } from '../api/client';
 import { Card, CardContent, CardHeader } from '../components/Card';
 import { Button } from '../components/Button';
 import { useToast } from '../contexts/ToastContext';
+import { KProfilesView } from '../components/KProfilesView';
+
+type ProfileTab = 'cloud' | 'kprofiles';
 
 type LoginStep = 'email' | 'code' | 'token';
 
@@ -398,9 +402,10 @@ function ProfilesView({ settings }: { settings: SlicerSettingsResponse }) {
   );
 }
 
-export function CloudProfilesPage() {
+export function ProfilesPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<ProfileTab>('kprofiles');
 
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ['cloudStatus'],
@@ -438,58 +443,95 @@ export function CloudProfilesPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Cloud className="w-6 h-6 text-bambu-green" />
-            Cloud Profiles
-          </h1>
-          <p className="text-bambu-gray">
-            {status?.is_authenticated
-              ? `Connected as ${status.email}`
-              : 'Manage your Bambu Cloud slicer presets'}
-          </p>
-        </div>
-        {status?.is_authenticated && (
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => refetchSettings()}
-              disabled={settingsLoading}
-            >
-              <RefreshCw className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => logoutMutation.mutate()}
-              disabled={logoutMutation.isPending}
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </div>
-        )}
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">Profiles</h1>
+        <p className="text-bambu-gray">
+          Manage your slicer presets and pressure advance calibrations
+        </p>
       </div>
 
-      {!status?.is_authenticated ? (
-        <LoginForm onSuccess={handleLoginSuccess} />
-      ) : settingsLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-8 h-8 text-bambu-green animate-spin" />
-        </div>
-      ) : settings ? (
-        <ProfilesView settings={settings} />
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-bambu-gray">Failed to load profiles</p>
-            <Button className="mt-4" onClick={() => refetchSettings()}>
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Tab Navigation */}
+      <div className="flex border-b border-bambu-dark-tertiary mb-6">
+        <button
+          onClick={() => setActiveTab('cloud')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'cloud'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-white border-transparent'
+          }`}
+        >
+          <Cloud className="w-4 h-4" />
+          Cloud Profiles
+        </button>
+        <button
+          onClick={() => setActiveTab('kprofiles')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'kprofiles'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-white border-transparent'
+          }`}
+        >
+          <Gauge className="w-4 h-4" />
+          K-Profiles
+        </button>
+      </div>
+
+      {/* Cloud Profiles Tab */}
+      {activeTab === 'cloud' && (
+        <>
+          {/* Cloud Status Header */}
+          <div className="mb-6 flex items-center justify-between">
+            <p className="text-bambu-gray">
+              {status?.is_authenticated
+                ? `Connected as ${status.email}`
+                : 'Connect to Bambu Cloud to access your slicer presets'}
+            </p>
+            {status?.is_authenticated && (
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => refetchSettings()}
+                  disabled={settingsLoading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => logoutMutation.mutate()}
+                  disabled={logoutMutation.isPending}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {!status?.is_authenticated ? (
+            <LoginForm onSuccess={handleLoginSuccess} />
+          ) : settingsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-bambu-green animate-spin" />
+            </div>
+          ) : settings ? (
+            <ProfilesView settings={settings} />
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-bambu-gray">Failed to load profiles</p>
+                <Button className="mt-4" onClick={() => refetchSettings()}>
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
+
+      {/* K-Profiles Tab */}
+      {activeTab === 'kprofiles' && <KProfilesView />}
     </div>
   );
 }
