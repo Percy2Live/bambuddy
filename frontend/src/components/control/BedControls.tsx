@@ -50,35 +50,35 @@ export function BedControls({ printerId, status, disabled = false }: BedControls
     <>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => handleMove(10)}
+          onClick={() => handleMove(-10)}
           disabled={isDisabled}
           className="px-3.5 py-2 rounded-md bg-bambu-dark-secondary hover:bg-bambu-dark-tertiary border border-bambu-dark-tertiary text-sm text-bambu-gray disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Z+10"
+          title="Bed up 10mm"
         >
           ↑10
         </button>
         <button
-          onClick={() => handleMove(1)}
+          onClick={() => handleMove(-1)}
           disabled={isDisabled}
           className="px-3.5 py-2 rounded-md bg-bambu-dark-secondary hover:bg-bambu-dark-tertiary border border-bambu-dark-tertiary text-sm text-bambu-gray disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Z+1"
+          title="Bed up 1mm"
         >
           ↑1
         </button>
         <span className="px-2 py-2 text-sm text-bambu-gray">Bed</span>
         <button
-          onClick={() => handleMove(-1)}
+          onClick={() => handleMove(1)}
           disabled={isDisabled}
           className="px-3.5 py-2 rounded-md bg-bambu-dark-secondary hover:bg-bambu-dark-tertiary border border-bambu-dark-tertiary text-sm text-bambu-gray disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Z-1"
+          title="Bed down 1mm"
         >
           ↓1
         </button>
         <button
-          onClick={() => handleMove(-10)}
+          onClick={() => handleMove(10)}
           disabled={isDisabled}
           className="px-3.5 py-2 rounded-md bg-bambu-dark-secondary hover:bg-bambu-dark-tertiary border border-bambu-dark-tertiary text-sm text-bambu-gray disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Z-10"
+          title="Bed down 10mm"
         >
           ↓10
         </button>

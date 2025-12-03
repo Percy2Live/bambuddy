@@ -118,3 +118,5 @@ class PrinterStatus(BaseModel):
     speed_level: int = 2
     # Chamber light on/off
     chamber_light: bool = False
+    # Active extruder for dual nozzle (0=right, 1=left)
+    active_extruder: int = 0

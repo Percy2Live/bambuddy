@@ -244,6 +244,7 @@ async def get_printer_status(printer_id: int, db: AsyncSession = Depends(get_db)
         airduct_mode=state.airduct_mode,
         speed_level=state.speed_level,
         chamber_light=state.chamber_light,
+        active_extruder=state.active_extruder,
     )
 
 

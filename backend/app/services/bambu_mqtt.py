@@ -109,6 +109,8 @@ class PrinterState:
     speed_level: int = 2
     # Chamber light on/off
     chamber_light: bool = False
+    # Active extruder for dual nozzle (0=right, 1=left) - from device.extruder.info[X].hnow
+    active_extruder: int = 0
 
 
 # Stage name mapping from BambuStudio DeviceManager.cpp
@@ -278,6 +280,10 @@ class BambuMQTTClient:
             # Track last message time - receiving a message proves we're connected
             self._last_message_time = time.time()
             self.state.connected = True
+            # TEMP: Dump full payload once to find extruder state field
+            if not hasattr(self, '_payload_dumped'):
+                self._payload_dumped = True
+                logger.info(f"[{self.serial_number}] FULL MQTT PAYLOAD DUMP:\n{json.dumps(payload, indent=2)}")
             # Log message if logging is enabled
             if self._logging_enabled:
                 self._message_log.append(MQTTLogEntry(
@@ -647,6 +653,33 @@ class BambuMQTTClient:
         if nozzle_fields and not hasattr(self, '_nozzle_fields_logged'):
             logger.info(f"[{self.serial_number}] Nozzle/hardware fields in MQTT data: {nozzle_fields}")
             self._nozzle_fields_logged = True
+        # Parse active extruder from device.extruder.state bit 8
+        # bit 8 = 0 → RIGHT extruder (active_extruder=0)
+        # bit 8 = 1 → LEFT extruder (active_extruder=1)
+        if "device" in data and isinstance(data.get("device"), dict):
+            device = data["device"]
+            if "extruder" in device and "state" in device["extruder"]:
+                state_val = device["extruder"]["state"]
+                # Extract bit 8 for extruder position
+                new_extruder = (state_val >> 8) & 0x1
+                if new_extruder != self.state.active_extruder:
+                    logger.info(f"[{self.serial_number}] ACTIVE EXTRUDER CHANGED (state bit 8): {self.state.active_extruder} -> {new_extruder} (0=right, 1=left) [state={state_val}]")
+                    self.state.active_extruder = new_extruder
+
+        # Log device.extruder structure for active extruder
+        if "device" in data and isinstance(data.get("device"), dict):
+            device = data["device"]
+            if "extruder" in device:
+                ext_data = device["extruder"]
+                # Log 'state' field - OrcaSlicer uses bits 12-14 for switch state
+                if "state" in ext_data:
+                    state_val = ext_data["state"]
+                    # Extract bits 12-14 (3 bits) for switch state
+                    switch_state = (state_val >> 12) & 0x7
+                    logger.info(f"[{self.serial_number}] device.extruder.state={state_val} (switch_state bits 12-14: {switch_state})")
+                # Log 'cur' field if present (might indicate current/active extruder)
+                if "cur" in ext_data:
+                    logger.info(f"[{self.serial_number}] device.extruder.cur: {ext_data['cur']}")
         if "bed_temper" in data:
             temps["bed"] = float(data["bed_temper"])
         if "bed_target_temper" in data:
@@ -2056,6 +2089,39 @@ class BambuMQTTClient:
             }
             self._client.publish(self.topic_publish, json.dumps(command), qos=1)
         logger.info(f"[{self.serial_number}] Set chamber lights {'on' if on else 'off'} (seq={self._sequence_id})")
+        return True
+
+    def select_extruder(self, extruder: int) -> bool:
+        """Select the active extruder for dual-nozzle printers (H2D).
+
+        Args:
+            extruder: Extruder index (0=right, 1=left for H2D)
+
+        Returns:
+            True if command was sent, False otherwise
+        """
+        if extruder not in (0, 1):
+            logger.warning(f"[{self.serial_number}] Invalid extruder: {extruder}")
+            return False
+
+        if not self._client or not self.state.connected:
+            logger.warning(f"[{self.serial_number}] Cannot switch extruder: not connected")
+            return False
+
+        # H2D extruder switching via select_extruder command
+        # Command format captured from OrcaSlicer:
+        # {"print": {"command": "select_extruder", "extruder_index": 0, "sequence_id": "..."}}
+        # extruder_index: 0 = RIGHT, 1 = LEFT
+        self._sequence_id += 1
+        command = {
+            "print": {
+                "command": "select_extruder",
+                "extruder_index": extruder,
+                "sequence_id": str(self._sequence_id)
+            }
+        }
+        self._client.publish(self.topic_publish, json.dumps(command), qos=1)
+        logger.info(f"[{self.serial_number}] Sent select_extruder command: extruder_index={extruder} (0=right, 1=left)")
         return True
 
     def home_axes(self, axes: str = "XYZ") -> bool:

@@ -63,7 +63,7 @@ export function SpeedModal({ printer, status, onClose }: SpeedModalProps) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md bg-bambu-dark-secondary rounded-2xl shadow-2xl border border-bambu-dark-tertiary overflow-hidden"
+        className="relative w-full max-w-lg bg-bambu-dark-secondary rounded-2xl shadow-2xl border border-bambu-dark-tertiary overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

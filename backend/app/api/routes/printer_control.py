@@ -105,6 +105,10 @@ class SpeedRequest(BaseModel):
     mode: int = Field(..., ge=1, le=4, description="Speed mode: 1=silent, 2=standard, 3=sport, 4=ludicrous")
 
 
+class ExtruderRequest(BaseModel):
+    extruder: int = Field(..., ge=0, le=1, description="Extruder index (0=right, 1=left for H2D)")
+
+
 class FanRequest(BaseModel):
     speed: int = Field(..., ge=0, le=100, description="Fan speed percentage (0-100)")
 
@@ -321,6 +325,28 @@ async def set_print_speed(
     return ControlResponse(
         success=success,
         message=f"Speed set to {speed_names[request.mode]}" if success else "Failed to set speed"
+    )
+
+
+# =============================================================================
+# Extruder Control Endpoint
+# =============================================================================
+
+@router.post("/{printer_id}/control/extruder", response_model=ControlResponse)
+async def select_extruder(
+    printer_id: int,
+    request: ExtruderRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Select the active extruder for dual-nozzle printers."""
+    await get_printer_or_404(printer_id, db)
+    client = get_mqtt_client_or_503(printer_id)
+
+    extruder_names = {0: "Right", 1: "Left"}
+    success = client.select_extruder(request.extruder)
+    return ControlResponse(
+        success=success,
+        message=f"Selected {extruder_names[request.extruder]} extruder" if success else "Failed to select extruder"
     )
 
 

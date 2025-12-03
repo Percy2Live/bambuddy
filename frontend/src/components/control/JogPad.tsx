@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { api, isConfirmationRequired } from '../../api/client';
 import type { PrinterStatus } from '../../api/client';
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 
 interface JogPadProps {
@@ -10,8 +10,57 @@ interface JogPadProps {
   disabled?: boolean;
 }
 
+// Image map coordinates for 220x220 jog pad
+// The jog pad has concentric rings: outer (10mm), inner (1mm), center (home)
+const SIZE = 220;
+const CENTER = SIZE / 2; // 110
+
+// Ring radii (approximate based on typical jog pad design)
+const OUTER_RADIUS = 108;  // Outer edge
+const OUTER_INNER = 72;    // Inner edge of outer ring (10mm zone)
+const INNER_INNER = 35;    // Inner edge of inner ring (1mm zone)
+const HOME_RADIUS = 28;    // Home button radius
+
+// Generate polygon points for a ring segment (pie slice)
+function ringSegment(
+  cx: number, cy: number,
+  innerR: number, outerR: number,
+  startAngle: number, endAngle: number,
+  steps: number = 8
+): string {
+  const points: string[] = [];
+
+  // Outer arc (clockwise)
+  for (let i = 0; i <= steps; i++) {
+    const angle = startAngle + (endAngle - startAngle) * (i / steps);
+    const x = Math.round(cx + outerR * Math.cos(angle));
+    const y = Math.round(cy + outerR * Math.sin(angle));
+    points.push(`${x},${y}`);
+  }
+
+  // Inner arc (counter-clockwise)
+  for (let i = steps; i >= 0; i--) {
+    const angle = startAngle + (endAngle - startAngle) * (i / steps);
+    const x = Math.round(cx + innerR * Math.cos(angle));
+    const y = Math.round(cy + innerR * Math.sin(angle));
+    points.push(`${x},${y}`);
+  }
+
+  return points.join(',');
+}
+
+// Angle definitions (in radians, 0 = right, going clockwise)
+// Each direction covers 90 degrees (π/2), offset by 45 degrees (π/4)
+const ANGLES = {
+  up:    { start: -Math.PI * 3/4, end: -Math.PI / 4 },     // Top: -135° to -45°
+  right: { start: -Math.PI / 4, end: Math.PI / 4 },         // Right: -45° to 45°
+  down:  { start: Math.PI / 4, end: Math.PI * 3/4 },        // Bottom: 45° to 135°
+  left:  { start: Math.PI * 3/4, end: Math.PI * 5/4 },      // Left: 135° to 225° (or -135°)
+};
+
 export function JogPad({ printerId, status, disabled = false }: JogPadProps) {
   const isConnected = (status?.connected ?? false) && !disabled;
+  const mapId = useId();
 
   const [confirmModal, setConfirmModal] = useState<{
     action: string;
@@ -56,10 +105,12 @@ export function JogPad({ printerId, status, disabled = false }: JogPadProps) {
   });
 
   const handleHome = () => {
+    if (isDisabled) return;
     homeMutation.mutate({ axes: 'XY' });
   };
 
   const handleMove = (axis: string, distance: number) => {
+    if (isDisabled) return;
     moveMutation.mutate({ axis, distance });
   };
 
@@ -73,76 +124,94 @@ export function JogPad({ printerId, status, disabled = false }: JogPadProps) {
   const isLoading = homeMutation.isPending || moveMutation.isPending;
   const isDisabled = !isConnected || isLoading;
 
+  // Generate coordinates for circle (home button)
+  const homeCoords = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i / 16) * Math.PI * 2;
+    const x = Math.round(CENTER + HOME_RADIUS * Math.cos(angle));
+    const y = Math.round(CENTER + HOME_RADIUS * Math.sin(angle));
+    return `${x},${y}`;
+  }).join(',');
+
   return (
     <>
       <div className="relative w-[220px] h-[220px] mb-3.5">
-        {/* Use the actual jogpad.svg from mockup */}
         <img
           src="/icons/jogpad.svg"
           alt="Jog Pad"
+          useMap={`#${mapId}`}
           className="w-full h-full jogpad-theme"
         />
 
-        {/* Invisible clickable areas overlaid on the SVG */}
-        {/* Outer ring - 10mm moves */}
-        <button
-          onClick={() => handleMove('Y', 10)}
-          disabled={isDisabled}
-          className="absolute top-[8px] left-1/2 -translate-x-1/2 w-[40px] h-[30px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="Y+10"
-        />
-        <button
-          onClick={() => handleMove('Y', -10)}
-          disabled={isDisabled}
-          className="absolute bottom-[8px] left-1/2 -translate-x-1/2 w-[40px] h-[30px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="Y-10"
-        />
-        <button
-          onClick={() => handleMove('X', -10)}
-          disabled={isDisabled}
-          className="absolute left-[8px] top-1/2 -translate-y-1/2 w-[30px] h-[40px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="X-10"
-        />
-        <button
-          onClick={() => handleMove('X', 10)}
-          disabled={isDisabled}
-          className="absolute right-[8px] top-1/2 -translate-y-1/2 w-[30px] h-[40px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="X+10"
-        />
+        <map name={mapId}>
+          {/* Outer ring - 10mm moves */}
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, OUTER_INNER, OUTER_RADIUS, ANGLES.up.start, ANGLES.up.end)}
+            onClick={() => handleMove('Y', 10)}
+            title="Y+10mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, OUTER_INNER, OUTER_RADIUS, ANGLES.down.start, ANGLES.down.end)}
+            onClick={() => handleMove('Y', -10)}
+            title="Y-10mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, OUTER_INNER, OUTER_RADIUS, ANGLES.left.start, ANGLES.left.end)}
+            onClick={() => handleMove('X', -10)}
+            title="X-10mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, OUTER_INNER, OUTER_RADIUS, ANGLES.right.start, ANGLES.right.end)}
+            onClick={() => handleMove('X', 10)}
+            title="X+10mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
 
-        {/* Inner ring - 1mm moves */}
-        <button
-          onClick={() => handleMove('Y', 1)}
-          disabled={isDisabled}
-          className="absolute top-[42px] left-1/2 -translate-x-1/2 w-[35px] h-[25px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="Y+1"
-        />
-        <button
-          onClick={() => handleMove('Y', -1)}
-          disabled={isDisabled}
-          className="absolute bottom-[42px] left-1/2 -translate-x-1/2 w-[35px] h-[25px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="Y-1"
-        />
-        <button
-          onClick={() => handleMove('X', -1)}
-          disabled={isDisabled}
-          className="absolute left-[42px] top-1/2 -translate-y-1/2 w-[25px] h-[35px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="X-1"
-        />
-        <button
-          onClick={() => handleMove('X', 1)}
-          disabled={isDisabled}
-          className="absolute right-[42px] top-1/2 -translate-y-1/2 w-[25px] h-[35px] opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="X+1"
-        />
+          {/* Inner ring - 1mm moves */}
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, INNER_INNER, OUTER_INNER, ANGLES.up.start, ANGLES.up.end)}
+            onClick={() => handleMove('Y', 1)}
+            title="Y+1mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, INNER_INNER, OUTER_INNER, ANGLES.down.start, ANGLES.down.end)}
+            onClick={() => handleMove('Y', -1)}
+            title="Y-1mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, INNER_INNER, OUTER_INNER, ANGLES.left.start, ANGLES.left.end)}
+            onClick={() => handleMove('X', -1)}
+            title="X-1mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+          <area
+            shape="poly"
+            coords={ringSegment(CENTER, CENTER, INNER_INNER, OUTER_INNER, ANGLES.right.start, ANGLES.right.end)}
+            onClick={() => handleMove('X', 1)}
+            title="X+1mm"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
 
-        {/* Home button in center - clickable overlay */}
-        <button
-          onClick={handleHome}
-          disabled={isDisabled}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50px] h-[50px] rounded-full opacity-0 hover:opacity-10 hover:bg-white disabled:cursor-not-allowed"
-          title="Home XY"
-        />
+          {/* Center - Home button */}
+          <area
+            shape="poly"
+            coords={homeCoords}
+            onClick={handleHome}
+            title="Home XY"
+            style={{ cursor: isDisabled ? 'not-allowed' : 'pointer' }}
+          />
+        </map>
       </div>
 
       {/* Confirmation Modal */}

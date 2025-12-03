@@ -121,6 +121,8 @@ export interface PrinterStatus {
   speed_level: number;
   // Chamber light on/off
   chamber_light: boolean;
+  // Active extruder for dual nozzle (0=right, 1=left)
+  active_extruder: number;
 }
 
 export interface PrinterCreate {
@@ -1178,6 +1180,11 @@ export const api = {
     request<ControlResponse>(`/printers/${printerId}/control/light`, {
       method: 'POST',
       body: JSON.stringify({ on }),
+    }),
+  selectExtruder: (printerId: number, extruder: number) =>
+    request<ControlResponse>(`/printers/${printerId}/control/extruder`, {
+      method: 'POST',
+      body: JSON.stringify({ extruder }),
     }),
   homeAxes: (printerId: number, axes = 'XYZ', confirmToken?: string) =>
     request<ControlResult>(`/printers/${printerId}/control/home`, {
