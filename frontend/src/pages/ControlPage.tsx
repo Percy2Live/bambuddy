@@ -255,6 +255,7 @@ export function ControlPage() {
               {/* AMS Section */}
               <AMSSectionDual
                 printerId={selectedPrinter.id}
+                printerModel={selectedPrinter.model || 'X1C'}
                 status={selectedStatus}
                 nozzleCount={selectedPrinter.nozzle_count}
               />

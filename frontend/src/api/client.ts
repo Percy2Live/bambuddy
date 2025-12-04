@@ -46,8 +46,15 @@ export interface AMSTray {
   id: number;
   tray_color: string | null;
   tray_type: string | null;
+  tray_sub_brands: string | null;  // Full name like "PLA Basic", "PETG HF"
+  tray_id_name: string | null;  // Bambu filament ID like "A00-Y2" (can decode to color)
+  tray_info_idx: string | null;  // Filament preset ID like "GFA00" - maps to cloud setting_id
   remain: number;
   k: number | null;  // Pressure advance value
+  tag_uid: string | null;  // RFID tag UID (any tag)
+  tray_uuid: string | null;  // Bambu Lab spool UUID (32-char hex, only valid for Bambu Lab spools)
+  nozzle_temp_min: number | null;  // Min nozzle temperature
+  nozzle_temp_max: number | null;  // Max nozzle temperature
 }
 
 export interface AMSUnit {
@@ -124,6 +131,15 @@ export interface PrinterStatus {
   chamber_light: boolean;
   // Active extruder for dual nozzle (0=right, 1=left)
   active_extruder: number;
+  // AMS mapping - which AMS is connected to which nozzle
+  // Format: [ams_id_for_nozzle0, ams_id_for_nozzle1, ...] where -1 means no AMS
+  ams_mapping: number[];
+  // Per-AMS extruder mapping - extracted from each AMS unit's info field
+  // Format: {ams_id: extruder_id} where extruder 0=right, 1=left
+  // Note: JSON keys are always strings
+  ams_extruder_map: Record<string, number>;
+  // Currently loaded tray (global tray ID, 255 = no filament loaded, 254 = external spool)
+  tray_now: number;
 }
 
 export interface PrinterCreate {
@@ -419,6 +435,34 @@ export interface KProfileDelete {
 export interface KProfilesResponse {
   profiles: KProfile[];
   nozzle_diameter: string;
+}
+
+// Slot Preset Mapping
+export interface SlotPresetMapping {
+  ams_id: number;
+  tray_id: number;
+  preset_id: string;
+  preset_name: string;
+}
+
+// Filament types
+export interface Filament {
+  id: number;
+  name: string;
+  type: string;  // PLA, PETG, ABS, etc.
+  brand: string | null;
+  color: string | null;
+  color_hex: string | null;
+  cost_per_kg: number;
+  spool_weight_g: number;
+  currency: string;
+  density: number | null;
+  print_temp_min: number | null;
+  print_temp_max: number | null;
+  bed_temp_min: number | null;
+  bed_temp_max: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Notification Provider types
@@ -1036,6 +1080,25 @@ export const api = {
       body: JSON.stringify(profile),
     }),
 
+  // Slot Preset Mappings
+  getSlotPresets: (printerId: number) =>
+    request<Record<number, SlotPresetMapping>>(`/printers/${printerId}/slot-presets`),
+  getSlotPreset: (printerId: number, amsId: number, trayId: number) =>
+    request<SlotPresetMapping | null>(`/printers/${printerId}/slot-presets/${amsId}/${trayId}`),
+  saveSlotPreset: (printerId: number, amsId: number, trayId: number, presetId: string, presetName: string) =>
+    request<SlotPresetMapping>(`/printers/${printerId}/slot-presets/${amsId}/${trayId}?preset_id=${encodeURIComponent(presetId)}&preset_name=${encodeURIComponent(presetName)}`, {
+      method: 'PUT',
+    }),
+  deleteSlotPreset: (printerId: number, amsId: number, trayId: number) =>
+    request<{ success: boolean }>(`/printers/${printerId}/slot-presets/${amsId}/${trayId}`, {
+      method: 'DELETE',
+    }),
+
+  // Filaments
+  listFilaments: () => request<Filament[]>('/filaments/'),
+  getFilament: (id: number) => request<Filament>(`/filaments/${id}`),
+  getFilamentsByType: (type: string) => request<Filament[]>(`/filaments/by-type/${type}`),
+
   // Notification Providers
   getNotificationProviders: () => request<NotificationProvider[]>('/notifications/'),
   getNotificationProvider: (id: number) => request<NotificationProvider>(`/notifications/${id}`),
@@ -1204,10 +1267,10 @@ export const api = {
     }),
   enableMotors: (printerId: number) =>
     request<ControlResponse>(`/printers/${printerId}/control/motors/enable`, { method: 'POST' }),
-  amsLoadFilament: (printerId: number, trayId: number) =>
+  amsLoadFilament: (printerId: number, trayId: number, extruderId?: number) =>
     request<ControlResponse>(`/printers/${printerId}/control/ams/load`, {
       method: 'POST',
-      body: JSON.stringify({ tray_id: trayId }),
+      body: JSON.stringify({ tray_id: trayId, extruder_id: extruderId }),
     }),
   amsUnloadFilament: (printerId: number) =>
     request<ControlResponse>(`/printers/${printerId}/control/ams/unload`, { method: 'POST' }),
@@ -1237,6 +1300,13 @@ export const api = {
   refreshStatus: (printerId: number) =>
     request<ControlResponse>(`/printers/${printerId}/control/refresh`, {
       method: 'POST',
+    }),
+
+  // Refresh a specific AMS tray (trigger RFID re-read)
+  refreshAmsTray: (printerId: number, amsId: number, trayId: number) =>
+    request<ControlResponse>(`/printers/${printerId}/control/ams/refresh-tray`, {
+      method: 'POST',
+      body: JSON.stringify({ ams_id: amsId, tray_id: trayId }),
     }),
 
   // Print Options (AI Detection)
