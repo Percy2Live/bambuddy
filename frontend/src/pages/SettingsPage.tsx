@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Loader2, Check, Plus, Plug, AlertTriangle, RotateCcw, Bell, Download, RefreshCw, ExternalLink, Globe, Droplets, Thermometer } from 'lucide-react';
+import { Loader2, Plus, Plug, AlertTriangle, RotateCcw, Bell, Download, RefreshCw, ExternalLink, Globe, Droplets, Thermometer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import type { AppSettings, SmartPlug, NotificationProvider, UpdateStatus } from '../api/client';
@@ -12,19 +12,20 @@ import { AddNotificationModal } from '../components/AddNotificationModal';
 import { SpoolmanSettings } from '../components/SpoolmanSettings';
 import { defaultNavItems, getDefaultView, setDefaultView } from '../components/Layout';
 import { availableLanguages } from '../i18n';
-import { useState, useEffect } from 'react';
+import { useToast } from '../contexts/ToastContext';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export function SettingsPage() {
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
+  const { showToast } = useToast();
   const [localSettings, setLocalSettings] = useState<AppSettings | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [showSaved, setShowSaved] = useState(false);
   const [showPlugModal, setShowPlugModal] = useState(false);
   const [editingPlug, setEditingPlug] = useState<SmartPlug | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingProvider, setEditingProvider] = useState<NotificationProvider | null>(null);
   const [defaultView, setDefaultViewState] = useState<string>(getDefaultView());
+  const [activeTab, setActiveTab] = useState<'general' | 'plugs' | 'notifications'>('general');
 
   const handleDefaultViewChange = (path: string) => {
     setDefaultViewState(path);
@@ -87,31 +88,18 @@ export function SettingsPage() {
     },
   });
 
+  // Ref for debounce timeout
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialLoadRef = useRef(true);
+
   // Sync local state when settings load
   useEffect(() => {
     if (settings && !localSettings) {
       setLocalSettings(settings);
-    }
-  }, [settings, localSettings]);
-
-  // Track changes
-  useEffect(() => {
-    if (settings && localSettings) {
-      const changed =
-        settings.auto_archive !== localSettings.auto_archive ||
-        settings.save_thumbnails !== localSettings.save_thumbnails ||
-        settings.capture_finish_photo !== localSettings.capture_finish_photo ||
-        settings.default_filament_cost !== localSettings.default_filament_cost ||
-        settings.currency !== localSettings.currency ||
-        settings.energy_cost_per_kwh !== localSettings.energy_cost_per_kwh ||
-        settings.energy_tracking_mode !== localSettings.energy_tracking_mode ||
-        settings.check_updates !== localSettings.check_updates ||
-        settings.notification_language !== localSettings.notification_language ||
-        settings.ams_humidity_good !== localSettings.ams_humidity_good ||
-        settings.ams_humidity_fair !== localSettings.ams_humidity_fair ||
-        settings.ams_temp_good !== localSettings.ams_temp_good ||
-        settings.ams_temp_fair !== localSettings.ams_temp_fair;
-      setHasChanges(changed);
+      // Mark initial load complete after a short delay
+      setTimeout(() => {
+        isInitialLoadRef.current = false;
+      }, 100);
     }
   }, [settings, localSettings]);
 
@@ -119,26 +107,63 @@ export function SettingsPage() {
     mutationFn: api.updateSettings,
     onSuccess: (data) => {
       queryClient.setQueryData(['settings'], data);
-      setLocalSettings(data);
-      setHasChanges(false);
-      setShowSaved(true);
-      setTimeout(() => setShowSaved(false), 2000);
       // Invalidate archive stats to reflect energy tracking mode change
       queryClient.invalidateQueries({ queryKey: ['archiveStats'] });
+      showToast('Settings saved', 'success');
+    },
+    onError: (error: Error) => {
+      showToast(`Failed to save: ${error.message}`, 'error');
     },
   });
 
-  const handleSave = () => {
-    if (localSettings) {
-      updateMutation.mutate(localSettings);
+  // Debounced auto-save when localSettings change
+  useEffect(() => {
+    // Skip if initial load or no settings
+    if (isInitialLoadRef.current || !localSettings || !settings) {
+      return;
     }
-  };
 
-  const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    if (localSettings) {
-      setLocalSettings({ ...localSettings, [key]: value });
+    // Check if there are actual changes
+    const hasChanges =
+      settings.auto_archive !== localSettings.auto_archive ||
+      settings.save_thumbnails !== localSettings.save_thumbnails ||
+      settings.capture_finish_photo !== localSettings.capture_finish_photo ||
+      settings.default_filament_cost !== localSettings.default_filament_cost ||
+      settings.currency !== localSettings.currency ||
+      settings.energy_cost_per_kwh !== localSettings.energy_cost_per_kwh ||
+      settings.energy_tracking_mode !== localSettings.energy_tracking_mode ||
+      settings.check_updates !== localSettings.check_updates ||
+      settings.notification_language !== localSettings.notification_language ||
+      settings.ams_humidity_good !== localSettings.ams_humidity_good ||
+      settings.ams_humidity_fair !== localSettings.ams_humidity_fair ||
+      settings.ams_temp_good !== localSettings.ams_temp_good ||
+      settings.ams_temp_fair !== localSettings.ams_temp_fair;
+
+    if (!hasChanges) {
+      return;
     }
-  };
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new debounced save (500ms delay)
+    saveTimeoutRef.current = setTimeout(() => {
+      updateMutation.mutate(localSettings);
+    }, 500);
+
+    // Cleanup on unmount or when localSettings changes again
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [localSettings, settings, updateMutation]);
+
+  const updateSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setLocalSettings(prev => prev ? { ...prev, [key]: value } : null);
+  }, []);
 
   if (isLoading || !localSettings) {
     return (
@@ -150,32 +175,59 @@ export function SettingsPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Settings</h1>
-          <p className="text-bambu-gray">Configure Bambusy</p>
-        </div>
-        <Button
-          onClick={handleSave}
-          disabled={!hasChanges || updateMutation.isPending}
-        >
-          {updateMutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : showSaved ? (
-            <Check className="w-4 h-4" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {showSaved ? 'Saved!' : 'Save'}
-        </Button>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white">Settings</h1>
+        <p className="text-bambu-gray">Configure Bambusy</p>
       </div>
 
-      {updateMutation.isError && (
-        <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-sm text-red-400">
-          Failed to save settings: {(updateMutation.error as Error).message}
-        </div>
-      )}
+      {/* Tab Navigation */}
+      <div className="flex gap-1 mb-6 border-b border-bambu-dark-tertiary">
+        <button
+          onClick={() => setActiveTab('general')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'general'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-white border-transparent'
+          }`}
+        >
+          General
+        </button>
+        <button
+          onClick={() => setActiveTab('plugs')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-2 ${
+            activeTab === 'plugs'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-white border-transparent'
+          }`}
+        >
+          <Plug className="w-4 h-4" />
+          Smart Plugs
+          {smartPlugs && smartPlugs.length > 0 && (
+            <span className="text-xs bg-bambu-dark-tertiary px-1.5 py-0.5 rounded-full">
+              {smartPlugs.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('notifications')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-2 ${
+            activeTab === 'notifications'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-white border-transparent'
+          }`}
+        >
+          <Bell className="w-4 h-4" />
+          Notifications
+          {notificationProviders && notificationProviders.length > 0 && (
+            <span className="text-xs bg-bambu-dark-tertiary px-1.5 py-0.5 rounded-full">
+              {notificationProviders.length}
+            </span>
+          )}
+        </button>
+      </div>
 
+      {/* General Tab */}
+      {activeTab === 'general' && (
       <div className="flex gap-8">
         {/* Left Column - General Settings */}
         <div className="space-y-6 flex-1 max-w-xl">
@@ -386,7 +438,10 @@ export function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Second Column - AMS & Spoolman */}
+        <div className="space-y-6 flex-1 max-w-md">
           <Card>
             <CardHeader>
               <h2 className="text-lg font-semibold text-white">AMS Display Thresholds</h2>
@@ -489,12 +544,12 @@ export function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <SpoolmanSettings />
         </div>
 
-        {/* Second Column - Spoolman & Updates */}
-        <div className="space-y-6 flex-1 max-w-md">
-          <SpoolmanSettings />
-
+        {/* Third Column - Updates */}
+        <div className="space-y-6 flex-1 max-w-sm">
           <Card>
             <CardHeader>
               <h2 className="text-lg font-semibold text-white">Updates</h2>
@@ -617,90 +672,103 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+      )}
 
-        {/* Third Column - Smart Plugs */}
-        <div className="w-80 flex-shrink-0">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Plug className="w-5 h-5 text-bambu-green" />
-                  <h2 className="text-lg font-semibold text-white">Smart Plugs</h2>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditingPlug(null);
+      {/* Smart Plugs Tab */}
+      {activeTab === 'plugs' && (
+        <div className="max-w-4xl">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Plug className="w-5 h-5 text-bambu-green" />
+                Smart Plugs
+              </h2>
+              <p className="text-sm text-bambu-gray mt-1">
+                Connect Tasmota-based smart plugs to automate power control and track energy usage for your printers.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingPlug(null);
+                setShowPlugModal(true);
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Add Smart Plug
+            </Button>
+          </div>
+
+          {plugsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-bambu-green animate-spin" />
+            </div>
+          ) : smartPlugs && smartPlugs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {smartPlugs.map((plug) => (
+                <SmartPlugCard
+                  key={plug.id}
+                  plug={plug}
+                  onEdit={(p) => {
+                    setEditingPlug(p);
                     setShowPlugModal(true);
                   }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Add
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-bambu-gray mb-4">
-                Connect Tasmota-based smart plugs to automate power control for your printers.
-              </p>
-              {plugsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-bambu-green animate-spin" />
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-bambu-gray">
+                  <Plug className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium text-white mb-2">No smart plugs configured</p>
+                  <p className="text-sm mb-4">Add a Tasmota-based smart plug to track energy usage and automate power control.</p>
+                  <Button
+                    onClick={() => {
+                      setEditingPlug(null);
+                      setShowPlugModal(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Your First Smart Plug
+                  </Button>
                 </div>
-              ) : smartPlugs && smartPlugs.length > 0 ? (
-                <div className="space-y-4">
-                  {smartPlugs.map((plug) => (
-                    <SmartPlugCard
-                      key={plug.id}
-                      plug={plug}
-                      onEdit={(p) => {
-                        setEditingPlug(p);
-                        setShowPlugModal(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-bambu-gray">
-                  <Plug className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>No smart plugs configured</p>
-                  <p className="text-sm mt-1">Add a Tasmota plug to get started</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
+      )}
 
-        {/* Fourth Column - Notifications */}
-        <div className="w-80 flex-shrink-0">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-bambu-green" />
-                  <h2 className="text-lg font-semibold text-white">Notifications</h2>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditingProvider(null);
-                    setShowNotificationModal(true);
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Add
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-bambu-gray mb-4">
-                Get notified about print events via WhatsApp, Telegram, Email, and more.
+      {/* Notifications Tab */}
+      {activeTab === 'notifications' && (
+        <div className="max-w-4xl">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Bell className="w-5 h-5 text-bambu-green" />
+                Notifications
+              </h2>
+              <p className="text-sm text-bambu-gray mt-1">
+                Get notified about print events via WhatsApp, Telegram, Email, Discord, and more.
               </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingProvider(null);
+                setShowNotificationModal(true);
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Add Provider
+            </Button>
+          </div>
 
-              {/* Notification Language */}
-              <div className="flex items-center justify-between py-3 border-b border-bambu-dark-tertiary mb-4">
+          {/* Notification Language Setting */}
+          <Card className="mb-6">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white">{t('settings.notificationLanguage')}</p>
+                  <p className="text-white font-medium">{t('settings.notificationLanguage')}</p>
                   <p className="text-sm text-bambu-gray">{t('settings.notificationLanguageDescription')}</p>
                 </div>
                 <select
@@ -715,35 +783,48 @@ export function SettingsPage() {
                   ))}
                 </select>
               </div>
-
-              {providersLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-bambu-green animate-spin" />
-                </div>
-              ) : notificationProviders && notificationProviders.length > 0 ? (
-                <div className="space-y-4">
-                  {notificationProviders.map((provider) => (
-                    <NotificationProviderCard
-                      key={provider.id}
-                      provider={provider}
-                      onEdit={(p) => {
-                        setEditingProvider(p);
-                        setShowNotificationModal(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-bambu-gray">
-                  <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>No notification providers configured</p>
-                  <p className="text-sm mt-1">Add a provider to get started</p>
-                </div>
-              )}
             </CardContent>
           </Card>
+
+          {providersLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-bambu-green animate-spin" />
+            </div>
+          ) : notificationProviders && notificationProviders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {notificationProviders.map((provider) => (
+                <NotificationProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  onEdit={(p) => {
+                    setEditingProvider(p);
+                    setShowNotificationModal(true);
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-bambu-gray">
+                  <Bell className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium text-white mb-2">No notification providers configured</p>
+                  <p className="text-sm mb-4">Add a notification provider to receive alerts about your print jobs.</p>
+                  <Button
+                    onClick={() => {
+                      setEditingProvider(null);
+                      setShowNotificationModal(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Your First Provider
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Smart Plug Modal */}
       {showPlugModal && (
