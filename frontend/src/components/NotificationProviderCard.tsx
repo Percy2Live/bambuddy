@@ -87,10 +87,10 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
               </div>
             </div>
 
-            {/* Status indicator */}
-            <div className="flex items-center gap-2">
+            {/* Quick enable/disable toggle + Status indicator */}
+            <div className="flex items-center gap-3">
               {provider.last_success && (
-                <span className="text-xs text-bambu-green">Last sent: {new Date(provider.last_success).toLocaleDateString()}</span>
+                <span className="text-xs text-bambu-green hidden sm:inline">Last: {new Date(provider.last_success).toLocaleDateString()}</span>
               )}
               {/* Only show error if it's more recent than last success */}
               {provider.last_error && provider.last_error_at && (
@@ -98,6 +98,10 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
               ) && (
                 <span className="text-xs text-red-400" title={provider.last_error}>Error</span>
               )}
+              <Toggle
+                checked={provider.enabled}
+                onChange={(checked) => updateMutation.mutate({ enabled: checked })}
+              />
             </div>
           </div>
 

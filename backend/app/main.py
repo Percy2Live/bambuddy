@@ -304,6 +304,26 @@ async def on_print_start(printer_id: int, data: dict):
 
     await ws_manager.send_print_start(printer_id, data)
 
+    # Send print start notifications FIRST (before any early returns)
+    try:
+        async with async_session() as db:
+            from backend.app.models.printer import Printer
+            result = await db.execute(
+                select(Printer).where(Printer.id == printer_id)
+            )
+            printer = result.scalar_one_or_none()
+            printer_name = printer.name if printer else f"Printer {printer_id}"
+            await notification_service.on_print_start(printer_id, printer_name, data, db)
+    except Exception as e:
+        logger.warning(f"Notification on_print_start failed: {e}")
+
+    # Smart plug automation: turn on plug when print starts
+    try:
+        async with async_session() as db:
+            await smart_plug_manager.on_print_start(printer_id, db)
+    except Exception as e:
+        logger.warning(f"Smart plug on_print_start failed: {e}")
+
     async with async_session() as db:
         from backend.app.models.printer import Printer
         from backend.app.services.bambu_ftp import list_files_async
@@ -395,12 +415,6 @@ async def on_print_start(printer_id: int, data: dict):
                     "id": archive.id,
                     "status": "printing",
                 })
-
-            # Smart plug automation for expected prints too
-            try:
-                await smart_plug_manager.on_print_start(printer_id, db)
-            except Exception as e:
-                logger.warning(f"Smart plug on_print_start failed: {e}")
 
             return  # Skip creating a new archive
 
@@ -579,28 +593,6 @@ async def on_print_start(printer_id: int, data: dict):
         finally:
             if temp_path and temp_path.exists():
                 temp_path.unlink()
-
-    # Smart plug automation: turn on plug when print starts
-    try:
-        async with async_session() as db:
-            await smart_plug_manager.on_print_start(printer_id, db)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Smart plug on_print_start failed: {e}")
-
-    # Send print start notifications
-    try:
-        async with async_session() as db:
-            from backend.app.models.printer import Printer
-            result = await db.execute(
-                select(Printer).where(Printer.id == printer_id)
-            )
-            printer = result.scalar_one_or_none()
-            printer_name = printer.name if printer else f"Printer {printer_id}"
-            await notification_service.on_print_start(printer_id, printer_name, data, db)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Notification on_print_start failed: {e}")
 
 
 async def on_print_complete(printer_id: int, data: dict):
