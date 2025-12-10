@@ -881,6 +881,30 @@ export interface MaintenanceSummary {
   }>;
 }
 
+// External Links (sidebar)
+export interface ExternalLink {
+  id: number;
+  name: string;
+  url: string;
+  icon: string;
+  custom_icon: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExternalLinkCreate {
+  name: string;
+  url: string;
+  icon: string;
+}
+
+export interface ExternalLinkUpdate {
+  name?: string;
+  url?: string;
+  icon?: string;
+}
+
 // API functions
 export const api = {
   // Printers
@@ -1506,4 +1530,41 @@ export const api = {
     `${API_BASE}/printers/${printerId}/camera/snapshot`,
   testCameraConnection: (printerId: number) =>
     request<{ success: boolean; message?: string; error?: string }>(`/printers/${printerId}/camera/test`),
+
+  // External Links
+  getExternalLinks: () => request<ExternalLink[]>('/external-links/'),
+  getExternalLink: (id: number) => request<ExternalLink>(`/external-links/${id}`),
+  createExternalLink: (data: ExternalLinkCreate) =>
+    request<ExternalLink>('/external-links/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateExternalLink: (id: number, data: ExternalLinkUpdate) =>
+    request<ExternalLink>(`/external-links/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteExternalLink: (id: number) =>
+    request<{ message: string }>(`/external-links/${id}`, { method: 'DELETE' }),
+  reorderExternalLinks: (ids: number[]) =>
+    request<ExternalLink[]>('/external-links/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ ids }),
+    }),
+  uploadExternalLinkIcon: async (id: number, file: File): Promise<ExternalLink> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE}/external-links/${id}/icon`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+  deleteExternalLinkIcon: (id: number) =>
+    request<ExternalLink>(`/external-links/${id}/icon`, { method: 'DELETE' }),
+  getExternalLinkIconUrl: (id: number) => `${API_BASE}/external-links/${id}/icon`,
 };

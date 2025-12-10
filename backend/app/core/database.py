@@ -34,7 +34,7 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     # Import models to register them with SQLAlchemy
-    from backend.app.models import printer, archive, filament, settings, smart_plug, print_queue, notification, maintenance, kprofile_note, notification_template  # noqa: F401
+    from backend.app.models import printer, archive, filament, settings, smart_plug, print_queue, notification, maintenance, kprofile_note, notification_template, external_link  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

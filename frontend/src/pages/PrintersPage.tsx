@@ -1013,41 +1013,52 @@ function PrinterCard({
                           )}
                         </div>
 
-                        {/* Label and humidity/temp */}
+                        {/* Label and filament info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-bambu-gray font-medium">
-                              {getAmsLabel(ams.id, ams.tray.length)}
-                            </span>
-                            {(ams.humidity != null || ams.temp != null) && (
-                              <div className="flex items-center gap-2 text-xs">
-                                {ams.humidity != null && (
-                                  <HumidityIndicator
-                                    humidity={ams.humidity}
-                                    goodThreshold={amsThresholds?.humidityGood}
-                                    fairThreshold={amsThresholds?.humidityFair}
-                                  />
-                                )}
-                                {ams.temp != null && (
-                                  <TemperatureIndicator
-                                    temp={ams.temp}
-                                    goodThreshold={amsThresholds?.tempGood}
-                                    fairThreshold={amsThresholds?.tempFair}
-                                  />
+                          <span className="text-xs text-bambu-gray font-medium">
+                            {getAmsLabel(ams.id, ams.tray.length)}
+                          </span>
+                          {/* Filament types and fill levels */}
+                          <div className="mt-0.5 text-[10px] flex items-start">
+                            {ams.tray.map((tray, i) => (
+                              <div key={i} className="flex items-start">
+                                <div className="flex flex-col">
+                                  <span className="text-bambu-gray/70 truncate">
+                                    {tray.tray_type ? (tray.tray_sub_brands || tray.tray_type) : '—'}
+                                  </span>
+                                  <span className="text-bambu-gray/50 truncate">
+                                    {tray.tray_type && tray.remain >= 0 ? `${tray.remain}%` : '—'}
+                                  </span>
+                                </div>
+                                {i < ams.tray.length - 1 && (
+                                  <span className="text-bambu-gray/50 mx-1 flex flex-col">
+                                    <span>·</span>
+                                    <span>·</span>
+                                  </span>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          {/* Filament tooltips as small text */}
-                          <div className="flex gap-1 mt-0.5 text-[10px] text-bambu-gray/70 truncate">
-                            {ams.tray.map((tray, i) => (
-                              <span key={i} className="truncate">
-                                {tray.tray_type ? (tray.tray_sub_brands || tray.tray_type) : '—'}
-                                {i < ams.tray.length - 1 && ' · '}
-                              </span>
                             ))}
                           </div>
                         </div>
+                        {/* Humidity/temp - vertically centered */}
+                        {(ams.humidity != null || ams.temp != null) && (
+                          <div className="flex items-center gap-2 text-xs flex-shrink-0">
+                            {ams.humidity != null && (
+                              <HumidityIndicator
+                                humidity={ams.humidity}
+                                goodThreshold={amsThresholds?.humidityGood}
+                                fairThreshold={amsThresholds?.humidityFair}
+                              />
+                            )}
+                            {ams.temp != null && (
+                              <TemperatureIndicator
+                                temp={ams.temp}
+                                goodThreshold={amsThresholds?.tempGood}
+                                fairThreshold={amsThresholds?.tempFair}
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1819,7 +1830,7 @@ export function PrintersPage() {
   }, [sortBy, sortedPrinters]);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Printers</h1>

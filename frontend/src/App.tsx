@@ -9,6 +9,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ProfilesPage } from './pages/ProfilesPage';
 import { MaintenancePage } from './pages/MaintenancePage';
 import { CameraPage } from './pages/CameraPage';
+import { ExternalLinkPage } from './pages/ExternalLinkPage';
 import { useWebSocket } from './hooks/useWebSocket';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -46,6 +47,7 @@ function App() {
                   <Route path="profiles" element={<ProfilesPage />} />
                   <Route path="maintenance" element={<MaintenancePage />} />
                   <Route path="settings" element={<SettingsPage />} />
+                  <Route path="external/:id" element={<ExternalLinkPage />} />
                 </Route>
               </Routes>
             </BrowserRouter>
