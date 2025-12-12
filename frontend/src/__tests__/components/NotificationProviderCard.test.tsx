@@ -173,12 +173,6 @@ describe('NotificationProviderCard', () => {
 });
 
 describe('NotificationProviderCard AMS toggles', () => {
-  const mockOnEdit = vi.fn();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('AMS humidity notifications', () => {
     it('includes on_ams_humidity_high in provider data', () => {
       const provider = createMockProvider({ on_ams_humidity_high: true });
