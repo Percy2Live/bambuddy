@@ -34,14 +34,42 @@ export function CameraPage() {
     };
   }, [printer]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount - stop the camera stream
   useEffect(() => {
+    const stopUrl = `/api/v1/printers/${id}/camera/stop`;
+
+    // Handle page unload/close with sendBeacon (more reliable than fetch on unload)
+    const handleBeforeUnload = () => {
+      if (id > 0) {
+        navigator.sendBeacon(stopUrl);
+      }
+    };
+
+    // Handle visibility change (tab hidden/closed)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && id > 0) {
+        navigator.sendBeacon(stopUrl);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+      // Clear the image source
       if (imgRef.current) {
         imgRef.current.src = '';
       }
+      // Call the stop endpoint to terminate ffmpeg processes
+      if (id > 0) {
+        // Use sendBeacon for reliability during unmount
+        navigator.sendBeacon(stopUrl);
+      }
     };
-  }, []);
+  }, [id]);
 
   // Auto-hide loading after timeout
   useEffect(() => {
@@ -73,6 +101,12 @@ export function CameraPage() {
     setStreamError(false);
   };
 
+  const stopStream = () => {
+    if (id > 0) {
+      fetch(`/api/v1/printers/${id}/camera/stop`).catch(() => {});
+    }
+  };
+
   const switchToMode = (newMode: 'stream' | 'snapshot') => {
     if (streamMode === newMode || transitioning) return;
     setTransitioning(true);
@@ -81,6 +115,11 @@ export function CameraPage() {
 
     if (imgRef.current) {
       imgRef.current.src = '';
+    }
+
+    // Stop any active streams when switching modes
+    if (streamMode === 'stream') {
+      stopStream();
     }
 
     setTimeout(() => {
@@ -98,6 +137,11 @@ export function CameraPage() {
 
     if (imgRef.current) {
       imgRef.current.src = '';
+    }
+
+    // Stop any active streams before refresh
+    if (streamMode === 'stream') {
+      stopStream();
     }
 
     setTimeout(() => {

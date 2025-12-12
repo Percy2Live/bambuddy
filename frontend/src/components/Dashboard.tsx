@@ -33,6 +33,12 @@ interface DashboardProps {
   columns?: number;
   hideControls?: boolean;
   onResetLayout?: () => void;
+  renderControls?: (controls: {
+    hiddenCount: number;
+    showHiddenPanel: boolean;
+    setShowHiddenPanel: (show: boolean) => void;
+    resetLayout: () => void;
+  }) => ReactNode;
 }
 
 interface LayoutState {
@@ -126,7 +132,7 @@ function SortableWidget({
   );
 }
 
-export function Dashboard({ widgets, storageKey, columns = 4, hideControls = false, onResetLayout }: DashboardProps) {
+export function Dashboard({ widgets, storageKey, columns = 4, hideControls = false, onResetLayout, renderControls }: DashboardProps) {
   // Build default sizes from widget definitions
   const getDefaultSizes = () => {
     const sizes: Record<string, 1 | 2 | 4> = {};
@@ -160,6 +166,13 @@ export function Dashboard({ widgets, storageKey, columns = 4, hideControls = fal
   });
 
   const [showHiddenPanel, setShowHiddenPanel] = useState(false);
+
+  // Listen for toggle-hidden-panel event from parent
+  useEffect(() => {
+    const handleToggle = () => setShowHiddenPanel(prev => !prev);
+    window.addEventListener('toggle-hidden-panel', handleToggle);
+    return () => window.removeEventListener('toggle-hidden-panel', handleToggle);
+  }, []);
 
   // Save layout to localStorage whenever it changes
   useEffect(() => {
@@ -246,11 +259,26 @@ export function Dashboard({ widgets, storageKey, columns = 4, hideControls = fal
   const visibleWidgets = orderedWidgets.filter((w) => !layout.hidden.includes(w.id));
   const hiddenWidgets = orderedWidgets.filter((w) => layout.hidden.includes(w.id));
 
+  // Render external controls if provided
+  const externalControls = renderControls?.({
+    hiddenCount: hiddenWidgets.length,
+    showHiddenPanel,
+    setShowHiddenPanel,
+    resetLayout,
+  });
+
   return (
     <div className="space-y-4">
+      {/* External controls slot */}
+      {externalControls}
+
       {/* Dashboard Controls */}
-      {!hideControls && (
+      {!hideControls && !renderControls && (
         <div className="flex items-center justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={resetLayout}>
+            <RotateCcw className="w-4 h-4" />
+            Reset Layout
+          </Button>
           {hiddenWidgets.length > 0 && (
             <Button
               variant="secondary"
@@ -261,10 +289,6 @@ export function Dashboard({ widgets, storageKey, columns = 4, hideControls = fal
               {hiddenWidgets.length} Hidden
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={resetLayout}>
-            <RotateCcw className="w-4 h-4" />
-            Reset Layout
-          </Button>
         </div>
       )}
 

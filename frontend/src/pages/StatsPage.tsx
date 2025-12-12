@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Package,
   Clock,
@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   FileText,
   Loader2,
+  Eye,
   RotateCcw,
 } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -393,6 +394,31 @@ export function StatsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [dashboardKey, setDashboardKey] = useState(0);
+  const [hiddenCount, setHiddenCount] = useState(0);
+
+  // Read hidden count from localStorage
+  useEffect(() => {
+    const updateHiddenCount = () => {
+      try {
+        const saved = localStorage.getItem('bambusy-dashboard-layout');
+        if (saved) {
+          const layout = JSON.parse(saved);
+          setHiddenCount(layout.hidden?.length || 0);
+        }
+      } catch {
+        setHiddenCount(0);
+      }
+    };
+    updateHiddenCount();
+    // Listen for storage changes
+    window.addEventListener('storage', updateHiddenCount);
+    // Also poll for changes (since storage event doesn't fire for same-tab changes)
+    const interval = setInterval(updateHiddenCount, 500);
+    return () => {
+      window.removeEventListener('storage', updateHiddenCount);
+      clearInterval(interval);
+    };
+  }, [dashboardKey]);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['archiveStats'],
@@ -406,7 +432,7 @@ export function StatsPage() {
 
   const { data: archives } = useQuery({
     queryKey: ['archives'],
-    queryFn: () => api.getArchives(undefined, 1000, 0),
+    queryFn: () => api.getArchives(undefined, undefined, 1000, 0),
   });
 
   const { data: settings } = useQuery({
@@ -498,11 +524,6 @@ export function StatsPage() {
     },
   ];
 
-  const handleResetLayout = () => {
-    localStorage.removeItem('bambusy-dashboard-layout');
-    setDashboardKey(prev => prev + 1);
-    showToast('Layout reset');
-  };
 
   return (
     <div className="p-4 md:p-8">
@@ -512,9 +533,27 @@ export function StatsPage() {
           <p className="text-bambu-gray">Drag widgets to rearrange. Click the eye icon to hide.</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Hidden widgets button - toggles panel in Dashboard */}
+          {hiddenCount > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                // Toggle the hidden panel in Dashboard by triggering a custom event
+                window.dispatchEvent(new CustomEvent('toggle-hidden-panel'));
+              }}
+            >
+              <Eye className="w-4 h-4" />
+              {hiddenCount} Hidden
+            </Button>
+          )}
+          {/* Reset Layout */}
           <Button
             variant="secondary"
-            onClick={handleResetLayout}
+            onClick={() => {
+              localStorage.removeItem('bambusy-dashboard-layout');
+              setDashboardKey(prev => prev + 1);
+              showToast('Layout reset');
+            }}
           >
             <RotateCcw className="w-4 h-4" />
             Reset Layout
@@ -555,7 +594,12 @@ export function StatsPage() {
         </div>
       </div>
 
-      <Dashboard key={dashboardKey} widgets={widgets} storageKey="bambusy-dashboard-layout" hideControls />
+      <Dashboard
+        key={dashboardKey}
+        widgets={widgets}
+        storageKey="bambusy-dashboard-layout"
+        hideControls
+      />
     </div>
   );
 }

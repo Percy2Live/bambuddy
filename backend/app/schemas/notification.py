@@ -40,9 +40,13 @@ class NotificationProviderBase(BaseModel):
     on_filament_low: bool = Field(default=False, description="Notify when filament is running low")
     on_maintenance_due: bool = Field(default=False, description="Notify when maintenance is due")
 
-    # Event triggers - AMS environmental alarms
+    # Event triggers - AMS environmental alarms (regular AMS)
     on_ams_humidity_high: bool = Field(default=False, description="Notify when AMS humidity exceeds threshold")
     on_ams_temperature_high: bool = Field(default=False, description="Notify when AMS temperature exceeds threshold")
+
+    # Event triggers - AMS-HT environmental alarms
+    on_ams_ht_humidity_high: bool = Field(default=False, description="Notify when AMS-HT humidity exceeds threshold")
+    on_ams_ht_temperature_high: bool = Field(default=False, description="Notify when AMS-HT temperature exceeds threshold")
 
     # Quiet hours
     quiet_hours_enabled: bool = Field(default=False, description="Enable quiet hours")
@@ -100,9 +104,13 @@ class NotificationProviderUpdate(BaseModel):
     on_filament_low: bool | None = None
     on_maintenance_due: bool | None = None
 
-    # Event triggers - AMS environmental alarms
+    # Event triggers - AMS environmental alarms (regular AMS)
     on_ams_humidity_high: bool | None = None
     on_ams_temperature_high: bool | None = None
+
+    # Event triggers - AMS-HT environmental alarms
+    on_ams_ht_humidity_high: bool | None = None
+    on_ams_ht_temperature_high: bool | None = None
 
     # Quiet hours
     quiet_hours_enabled: bool | None = None

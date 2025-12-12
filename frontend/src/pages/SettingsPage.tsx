@@ -51,6 +51,7 @@ export function SettingsPage() {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showTelemetryInfo, setShowTelemetryInfo] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 
   const handleDefaultViewChange = (path: string) => {
     setDefaultViewState(path);
@@ -126,7 +127,6 @@ export function SettingsPage() {
   const { data: apiKeys, isLoading: apiKeysLoading } = useQuery({
     queryKey: ['api-keys'],
     queryFn: api.getAPIKeys,
-    enabled: activeTab === 'apikeys',
   });
 
   const createAPIKeyMutation = useMutation({
@@ -822,12 +822,12 @@ export function SettingsPage() {
           </Card>
 
           <SpoolmanSettings />
-
-          <ExternalLinksSettings />
         </div>
 
         {/* Third Column - Updates */}
         <div className="space-y-6 flex-1 lg:max-w-sm">
+          <ExternalLinksSettings />
+
           <Card>
             <CardHeader>
               <h2 className="text-lg font-semibold text-white">Updates</h2>
@@ -908,23 +908,28 @@ export function SettingsPage() {
                         {updateCheck.release_name && updateCheck.release_name !== updateCheck.latest_version && (
                           <p className="text-sm text-bambu-gray mt-1">{updateCheck.release_name}</p>
                         )}
+                      </div>
+                      <div className="flex items-center gap-2">
                         {updateCheck.release_notes && (
-                          <p className="text-sm text-bambu-gray mt-2 whitespace-pre-line line-clamp-3">
-                            {updateCheck.release_notes}
-                          </p>
+                          <button
+                            onClick={() => setShowReleaseNotes(true)}
+                            className="text-bambu-gray hover:text-white transition-colors text-sm underline"
+                          >
+                            Release Notes
+                          </button>
+                        )}
+                        {updateCheck.release_url && (
+                          <a
+                            href={updateCheck.release_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-bambu-gray hover:text-white transition-colors"
+                            title="View release on GitHub"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
                         )}
                       </div>
-                      {updateCheck.release_url && (
-                        <a
-                          href={updateCheck.release_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-bambu-gray hover:text-white transition-colors"
-                          title="View release on GitHub"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
                     </div>
 
                     {updateStatus?.status === 'downloading' || updateStatus?.status === 'installing' ? (
@@ -1935,6 +1940,59 @@ export function SettingsPage() {
                 {t('common.close')}
               </Button>
             </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Release Notes Modal */}
+      {showReleaseNotes && updateCheck?.release_notes && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowReleaseNotes(false)}
+        >
+          <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  Release Notes - v{updateCheck.latest_version}
+                </h2>
+                {updateCheck.release_name && updateCheck.release_name !== updateCheck.latest_version && (
+                  <p className="text-sm text-bambu-gray">{updateCheck.release_name}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setShowReleaseNotes(false)}
+                className="p-1 rounded hover:bg-bambu-dark-tertiary text-bambu-gray hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="overflow-y-auto flex-1">
+              <pre className="text-sm text-bambu-gray whitespace-pre-wrap font-sans">
+                {updateCheck.release_notes}
+              </pre>
+            </CardContent>
+            <div className="p-4 border-t border-bambu-dark-tertiary shrink-0 flex gap-2">
+              {updateCheck.release_url && (
+                <a
+                  href={updateCheck.release_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                >
+                  <Button variant="secondary" className="w-full">
+                    <ExternalLink className="w-4 h-4" />
+                    View on GitHub
+                  </Button>
+                </a>
+              )}
+              <Button
+                onClick={() => setShowReleaseNotes(false)}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
           </Card>
         </div>
       )}
