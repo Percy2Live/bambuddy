@@ -626,9 +626,9 @@ class NotificationService:
         variables = {
             "printer": printer_name,
             "filename": filename,
-            "duration": "",
-            "filament_grams": "",
-            "reason": "",
+            "duration": "Unknown",
+            "filament_grams": "Unknown",
+            "reason": "Unknown",
         }
 
         if archive_data:
@@ -638,6 +638,8 @@ class NotificationService:
                 variables["filament_grams"] = f"{archive_data['actual_filament_grams']:.1f}"
             if status == "failed" and archive_data.get("failure_reason"):
                 variables["reason"] = archive_data["failure_reason"]
+
+        logger.info(f"on_print_complete variables: {variables}, archive_data: {archive_data}")
 
         logger.info(f"Found {len(providers)} providers for {event_field}: {[p.name for p in providers]}")
         title, message = await self._build_message_from_template(db, event_type, variables)
@@ -661,7 +663,7 @@ class NotificationService:
             "printer": printer_name,
             "filename": self._clean_filename(filename),
             "progress": str(progress),
-            "remaining_time": self._format_duration(remaining_time) if remaining_time else "",
+            "remaining_time": self._format_duration(remaining_time) if remaining_time else "Unknown",
         }
 
         title, message = await self._build_message_from_template(db, "print_progress", variables)
@@ -696,7 +698,7 @@ class NotificationService:
         variables = {
             "printer": printer_name,
             "error_type": error_type,
-            "error_detail": error_detail or "",
+            "error_detail": error_detail or "No details available",
         }
 
         title, message = await self._build_message_from_template(db, "printer_error", variables)
@@ -807,6 +809,58 @@ class NotificationService:
         title, message = await self._build_message_from_template(db, "ams_temperature_high", variables)
         # Alarms always send immediately, bypassing digest mode
         await self._send_to_providers(providers, title, message, db, "ams_temperature_high", printer_id, printer_name, force_immediate=True)
+
+    async def on_ams_ht_humidity_high(
+        self,
+        printer_id: int,
+        printer_name: str,
+        ams_label: str,
+        humidity: float,
+        threshold: float,
+        db: AsyncSession,
+    ):
+        """Handle AMS-HT high humidity alarm event. Always sends immediately (bypasses digest)."""
+        providers = await self._get_providers_for_event(db, "on_ams_ht_humidity_high", printer_id)
+        if not providers:
+            return
+
+        variables = {
+            "printer": printer_name,
+            "ams_label": ams_label,
+            "humidity": f"{humidity:.0f}",
+            "threshold": f"{threshold:.0f}",
+        }
+
+        # Use the same template as regular AMS (can create separate templates later if needed)
+        title, message = await self._build_message_from_template(db, "ams_humidity_high", variables)
+        # Alarms always send immediately, bypassing digest mode
+        await self._send_to_providers(providers, title, message, db, "ams_ht_humidity_high", printer_id, printer_name, force_immediate=True)
+
+    async def on_ams_ht_temperature_high(
+        self,
+        printer_id: int,
+        printer_name: str,
+        ams_label: str,
+        temperature: float,
+        threshold: float,
+        db: AsyncSession,
+    ):
+        """Handle AMS-HT high temperature alarm event. Always sends immediately (bypasses digest)."""
+        providers = await self._get_providers_for_event(db, "on_ams_ht_temperature_high", printer_id)
+        if not providers:
+            return
+
+        variables = {
+            "printer": printer_name,
+            "ams_label": ams_label,
+            "temperature": f"{temperature:.1f}",
+            "threshold": f"{threshold:.1f}",
+        }
+
+        # Use the same template as regular AMS (can create separate templates later if needed)
+        title, message = await self._build_message_from_template(db, "ams_temperature_high", variables)
+        # Alarms always send immediately, bypassing digest mode
+        await self._send_to_providers(providers, title, message, db, "ams_ht_temperature_high", printer_id, printer_name, force_immediate=True)
 
     def clear_template_cache(self):
         """Clear the template cache. Call this when templates are updated."""

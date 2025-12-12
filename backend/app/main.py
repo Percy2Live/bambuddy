@@ -843,6 +843,7 @@ async def on_print_complete(printer_id: int, data: dict):
     try:
         async with async_session() as db:
             from backend.app.models.printer import Printer
+            from backend.app.models.archive import PrintArchive
             result = await db.execute(
                 select(Printer).where(Printer.id == printer_id)
             )
@@ -850,9 +851,23 @@ async def on_print_complete(printer_id: int, data: dict):
             printer_name = printer.name if printer else f"Printer {printer_id}"
             status = data.get("status", "completed")
 
+            # Fetch archive data for notification variables
+            archive_data = None
+            if archive_id:
+                archive_result = await db.execute(
+                    select(PrintArchive).where(PrintArchive.id == archive_id)
+                )
+                archive = archive_result.scalar_one_or_none()
+                if archive:
+                    archive_data = {
+                        "print_time_seconds": archive.print_time_seconds,
+                        "actual_filament_grams": archive.filament_used_grams,
+                        "failure_reason": archive.failure_reason,
+                    }
+
             # on_print_complete handles all status types: completed, failed, aborted, stopped
             await notification_service.on_print_complete(
-                printer_id, printer_name, status, data, db
+                printer_id, printer_name, status, data, db, archive_data=archive_data
             )
     except Exception as e:
         import logging
@@ -1052,8 +1067,9 @@ async def record_ams_history():
                         db.add(history)
                         recorded_count += 1
 
-                        # Generate AMS label (A, B, C, D or HT-A for AMS-Lite/Hub)
-                        if ams_id >= 128:
+                        # Generate AMS label and determine if it's AMS-HT (A, B, C, D or HT-A for AMS-Lite/Hub)
+                        is_ams_ht = ams_id >= 128
+                        if is_ams_ht:
                             ams_label = f"HT-{chr(65 + (ams_id - 128))}"
                         else:
                             ams_label = f"AMS-{chr(65 + ams_id)}"
@@ -1067,9 +1083,15 @@ async def record_ams_history():
                                 _ams_alarm_cooldown[cooldown_key] = now
                                 logger.info(f"Sending humidity alarm for {printer.name} {ams_label}: {humidity}% > {humidity_threshold}%")
                                 try:
-                                    await notification_service.on_ams_humidity_high(
-                                        printer.id, printer.name, ams_label, humidity, humidity_threshold, db
-                                    )
+                                    # Call different notification method based on AMS type
+                                    if is_ams_ht:
+                                        await notification_service.on_ams_ht_humidity_high(
+                                            printer.id, printer.name, ams_label, humidity, humidity_threshold, db
+                                        )
+                                    else:
+                                        await notification_service.on_ams_humidity_high(
+                                            printer.id, printer.name, ams_label, humidity, humidity_threshold, db
+                                        )
                                 except Exception as e:
                                     logger.warning(f"Failed to send humidity alarm: {e}")
 
@@ -1082,9 +1104,15 @@ async def record_ams_history():
                                 _ams_alarm_cooldown[cooldown_key] = now
                                 logger.info(f"Sending temperature alarm for {printer.name} {ams_label}: {temperature}°C > {temp_threshold}°C")
                                 try:
-                                    await notification_service.on_ams_temperature_high(
-                                        printer.id, printer.name, ams_label, temperature, temp_threshold, db
-                                    )
+                                    # Call different notification method based on AMS type
+                                    if is_ams_ht:
+                                        await notification_service.on_ams_ht_temperature_high(
+                                            printer.id, printer.name, ams_label, temperature, temp_threshold, db
+                                        )
+                                    else:
+                                        await notification_service.on_ams_temperature_high(
+                                            printer.id, printer.name, ams_label, temperature, temp_threshold, db
+                                        )
                                 except Exception as e:
                                     logger.warning(f"Failed to send temperature alarm: {e}")
 

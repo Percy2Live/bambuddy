@@ -54,6 +54,8 @@ const mockNotificationProviders = [
     on_maintenance_due: false,
     on_ams_humidity_high: false,
     on_ams_temperature_high: false,
+    on_ams_ht_humidity_high: false,
+    on_ams_ht_temperature_high: false,
     quiet_hours_enabled: false,
     quiet_hours_start: null,
     quiet_hours_end: null,

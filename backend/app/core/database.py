@@ -285,6 +285,20 @@ async def run_migrations(conn):
     except Exception:
         pass
 
+    # Migration: Add AMS-HT alarm notification columns to notification_providers
+    try:
+        await conn.execute(text(
+            "ALTER TABLE notification_providers ADD COLUMN on_ams_ht_humidity_high BOOLEAN DEFAULT 0"
+        ))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text(
+            "ALTER TABLE notification_providers ADD COLUMN on_ams_ht_temperature_high BOOLEAN DEFAULT 0"
+        ))
+    except Exception:
+        pass
+
 
 async def seed_notification_templates():
     """Seed default notification templates if they don't exist."""
