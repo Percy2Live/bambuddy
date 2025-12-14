@@ -1,13 +1,11 @@
 import asyncio
-from typing import Callable
-from dataclasses import asdict
+from collections.abc import Callable
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.printer import Printer
-from backend.app.services.bambu_mqtt import BambuMQTTClient, PrinterState, MQTTLogEntry
-from backend.app.services.bambu_ftp import BambuFTPClient
+from backend.app.services.bambu_mqtt import BambuMQTTClient, MQTTLogEntry, PrinterState
 
 
 class PrinterManager:
@@ -56,9 +54,8 @@ class PrinterManager:
                     f.result()
                 except Exception as e:
                     import logging
-                    logging.getLogger(__name__).error(
-                        f"Exception in scheduled callback: {e}", exc_info=True
-                    )
+
+                    logging.getLogger(__name__).error(f"Exception in scheduled callback: {e}", exc_info=True)
 
             future.add_done_callback(handle_exception)
 
@@ -71,27 +68,19 @@ class PrinterManager:
 
         def on_state_change(state: PrinterState):
             if self._on_status_change:
-                self._schedule_async(
-                    self._on_status_change(printer_id, state)
-                )
+                self._schedule_async(self._on_status_change(printer_id, state))
 
         def on_print_start(data: dict):
             if self._on_print_start:
-                self._schedule_async(
-                    self._on_print_start(printer_id, data)
-                )
+                self._schedule_async(self._on_print_start(printer_id, data))
 
         def on_print_complete(data: dict):
             if self._on_print_complete:
-                self._schedule_async(
-                    self._on_print_complete(printer_id, data)
-                )
+                self._schedule_async(self._on_print_complete(printer_id, data))
 
         def on_ams_change(ams_data: list):
             if self._on_ams_change:
-                self._schedule_async(
-                    self._on_ams_change(printer_id, ams_data)
-                )
+                self._schedule_async(self._on_ams_change(printer_id, ams_data))
 
         client = BambuMQTTClient(
             ip_address=printer.ip_address,
@@ -158,6 +147,7 @@ class PrinterManager:
         to immediately update the UI without waiting for MQTT timeout.
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         if printer_id in self._clients:
@@ -170,10 +160,10 @@ class PrinterManager:
                 if self._on_status_change:
                     self._schedule_async(self._on_status_change(printer_id, client.state))
 
-    def start_print(self, printer_id: int, filename: str) -> bool:
+    def start_print(self, printer_id: int, filename: str, plate_id: int = 1) -> bool:
         """Start a print on a connected printer."""
         if printer_id in self._clients:
-            return self._clients[printer_id].start_print(filename)
+            return self._clients[printer_id].start_print(filename, plate_id)
         return False
 
     def stop_print(self, printer_id: int) -> bool:
@@ -201,6 +191,7 @@ class PrinterManager:
             True if cooled down, False if timeout or not connected
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         elapsed = 0
@@ -306,16 +297,18 @@ def printer_state_to_dict(state: PrinterState, printer_id: int | None = None) ->
                 tray_uuid = tray.get("tray_uuid")
                 if tray_uuid in ("", "00000000000000000000000000000000"):
                     tray_uuid = None
-                trays.append({
-                    "id": tray.get("id", 0),
-                    "tray_color": tray.get("tray_color"),
-                    "tray_type": tray.get("tray_type"),
-                    "tray_sub_brands": tray.get("tray_sub_brands"),
-                    "remain": tray.get("remain", 0),
-                    "k": tray.get("k"),
-                    "tag_uid": tag_uid,
-                    "tray_uuid": tray_uuid,
-                })
+                trays.append(
+                    {
+                        "id": tray.get("id", 0),
+                        "tray_color": tray.get("tray_color"),
+                        "tray_type": tray.get("tray_type"),
+                        "tray_sub_brands": tray.get("tray_sub_brands"),
+                        "remain": tray.get("remain", 0),
+                        "k": tray.get("k"),
+                        "tag_uid": tag_uid,
+                        "tray_uuid": tray_uuid,
+                    }
+                )
             # Prefer humidity_raw (actual percentage) over humidity (index 1-5)
             humidity_raw = ams_data.get("humidity_raw")
             humidity_idx = ams_data.get("humidity")
@@ -336,13 +329,15 @@ def printer_state_to_dict(state: PrinterState, printer_id: int | None = None) ->
             # AMS-HT has 1 tray, regular AMS has 4 trays
             is_ams_ht = len(trays) == 1
 
-            ams_units.append({
-                "id": ams_data.get("id", 0),
-                "humidity": humidity_value,
-                "temp": ams_data.get("temp"),
-                "is_ams_ht": is_ams_ht,
-                "tray": trays,
-            })
+            ams_units.append(
+                {
+                    "id": ams_data.get("id", 0),
+                    "humidity": humidity_value,
+                    "temp": ams_data.get("temp"),
+                    "is_ams_ht": is_ams_ht,
+                    "tray": trays,
+                }
+            )
 
     # Parse virtual tray (external spool)
     if "vt_tray" in raw_data:
@@ -403,9 +398,7 @@ printer_manager = PrinterManager()
 
 async def init_printer_connections(db: AsyncSession):
     """Initialize connections to all active printers."""
-    result = await db.execute(
-        select(Printer).where(Printer.is_active == True)
-    )
+    result = await db.execute(select(Printer).where(Printer.is_active.is_(True)))
     printers = result.scalars().all()
 
     for printer in printers:

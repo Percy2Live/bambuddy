@@ -1,22 +1,21 @@
-from pathlib import Path
-import zipfile
 import io
 import logging
+import zipfile
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Query
-
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from backend.app.core.config import settings
 from backend.app.core.database import get_db
 from backend.app.models.archive import PrintArchive
 from backend.app.models.filament import Filament
-from backend.app.schemas.archive import ArchiveResponse, ArchiveUpdate, ArchiveStats
+from backend.app.schemas.archive import ArchiveResponse, ArchiveStats, ArchiveUpdate
 from backend.app.services.archive import ArchiveService
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/archives", tags=["archives"])
 
@@ -145,7 +144,7 @@ async def search_archives(
 
     # Prepare search query - add wildcard for partial matches
     search_term = q.strip()
-    if not search_term.endswith('*'):
+    if not search_term.endswith("*"):
         search_term = f"{search_term}*"
 
     # Build the FTS query
@@ -168,12 +167,12 @@ async def search_archives(
             select(PrintArchive)
             .options(selectinload(PrintArchive.project))
             .where(
-                (PrintArchive.print_name.ilike(like_pattern)) |
-                (PrintArchive.filename.ilike(like_pattern)) |
-                (PrintArchive.tags.ilike(like_pattern)) |
-                (PrintArchive.notes.ilike(like_pattern)) |
-                (PrintArchive.designer.ilike(like_pattern)) |
-                (PrintArchive.filament_type.ilike(like_pattern))
+                (PrintArchive.print_name.ilike(like_pattern))
+                | (PrintArchive.filename.ilike(like_pattern))
+                | (PrintArchive.tags.ilike(like_pattern))
+                | (PrintArchive.notes.ilike(like_pattern))
+                | (PrintArchive.designer.ilike(like_pattern))
+                | (PrintArchive.filament_type.ilike(like_pattern))
             )
             .order_by(PrintArchive.created_at.desc())
         )
@@ -194,11 +193,7 @@ async def search_archives(
         return []
 
     # Fetch full archive records for matched IDs
-    query = (
-        select(PrintArchive)
-        .options(selectinload(PrintArchive.project))
-        .where(PrintArchive.id.in_(matched_ids))
-    )
+    query = select(PrintArchive).options(selectinload(PrintArchive.project)).where(PrintArchive.id.in_(matched_ids))
 
     # Apply additional filters
     if printer_id:
@@ -213,7 +208,7 @@ async def search_archives(
 
     # Preserve FTS ranking order and apply pagination
     ordered_archives = [archives_dict[id] for id in matched_ids if id in archives_dict]
-    paginated = ordered_archives[offset:offset + limit]
+    paginated = ordered_archives[offset : offset + limit]
 
     return [archive_to_response(a) for a in paginated]
 
@@ -231,11 +226,13 @@ async def rebuild_search_index(db: AsyncSession = Depends(get_db)):
         await db.execute(text("DELETE FROM archive_fts"))
 
         # Repopulate from print_archives
-        await db.execute(text("""
+        await db.execute(
+            text("""
             INSERT INTO archive_fts(rowid, print_name, filename, tags, notes, designer, filament_type)
             SELECT id, print_name, filename, tags, notes, designer, filament_type
             FROM print_archives
-        """))
+        """)
+        )
 
         await db.commit()
 
@@ -325,7 +322,9 @@ async def export_archives(
     Returns a downloadable file with archive data.
     """
     from datetime import datetime
+
     from fastapi.responses import StreamingResponse
+
     from backend.app.services.export import ExportService
 
     if format not in ("csv", "xlsx"):
@@ -382,6 +381,7 @@ async def export_stats(
 ):
     """Export statistics summary to CSV or Excel format."""
     from fastapi.responses import StreamingResponse
+
     from backend.app.services.export import ExportService
 
     if format not in ("csv", "xlsx"):
@@ -412,36 +412,25 @@ async def get_archive_stats(db: AsyncSession = Depends(get_db)):
     total_result = await db.execute(select(func.count(PrintArchive.id)))
     total_prints = total_result.scalar() or 0
 
-    successful_result = await db.execute(
-        select(func.count(PrintArchive.id)).where(PrintArchive.status == "completed")
-    )
+    successful_result = await db.execute(select(func.count(PrintArchive.id)).where(PrintArchive.status == "completed"))
     successful_prints = successful_result.scalar() or 0
 
-    failed_result = await db.execute(
-        select(func.count(PrintArchive.id)).where(PrintArchive.status == "failed")
-    )
+    failed_result = await db.execute(select(func.count(PrintArchive.id)).where(PrintArchive.status == "failed"))
     failed_prints = failed_result.scalar() or 0
 
     # Totals
-    time_result = await db.execute(
-        select(func.sum(PrintArchive.print_time_seconds))
-    )
+    time_result = await db.execute(select(func.sum(PrintArchive.print_time_seconds)))
     total_time = (time_result.scalar() or 0) / 3600  # Convert to hours
 
-    filament_result = await db.execute(
-        select(func.sum(PrintArchive.filament_used_grams))
-    )
+    filament_result = await db.execute(select(func.sum(PrintArchive.filament_used_grams)))
     total_filament = filament_result.scalar() or 0
 
-    cost_result = await db.execute(
-        select(func.sum(PrintArchive.cost))
-    )
+    cost_result = await db.execute(select(func.sum(PrintArchive.cost)))
     total_cost = cost_result.scalar() or 0
 
     # By filament type (split comma-separated values for multi-material prints)
     filament_type_result = await db.execute(
-        select(PrintArchive.filament_type)
-        .where(PrintArchive.filament_type.isnot(None))
+        select(PrintArchive.filament_type).where(PrintArchive.filament_type.isnot(None))
     )
     prints_by_filament: dict[str, int] = {}
     for (filament_types,) in filament_type_result.all():
@@ -453,8 +442,7 @@ async def get_archive_stats(db: AsyncSession = Depends(get_db)):
 
     # By printer
     printer_result = await db.execute(
-        select(PrintArchive.printer_id, func.count(PrintArchive.id))
-        .group_by(PrintArchive.printer_id)
+        select(PrintArchive.printer_id, func.count(PrintArchive.id)).group_by(PrintArchive.printer_id)
     )
     prints_by_printer = {str(k): v for k, v in printer_result.all()}
 
@@ -496,6 +484,7 @@ async def get_archive_stats(db: AsyncSession = Depends(get_db)):
 
     # Energy totals - check which mode to use
     from backend.app.api.routes.settings import get_setting
+
     energy_tracking_mode = await get_setting(db, "energy_tracking_mode") or "total"
     energy_cost_per_kwh_str = await get_setting(db, "energy_cost_per_kwh")
     energy_cost_per_kwh = float(energy_cost_per_kwh_str) if energy_cost_per_kwh_str else 0.15
@@ -518,14 +507,10 @@ async def get_archive_stats(db: AsyncSession = Depends(get_db)):
         total_energy_cost = round(total_energy_kwh * energy_cost_per_kwh, 2)
     else:
         # Print mode: sum up per-print energy from archives
-        energy_kwh_result = await db.execute(
-            select(func.sum(PrintArchive.energy_kwh))
-        )
+        energy_kwh_result = await db.execute(select(func.sum(PrintArchive.energy_kwh)))
         total_energy_kwh = energy_kwh_result.scalar() or 0
 
-        energy_cost_result = await db.execute(
-            select(func.sum(PrintArchive.energy_cost))
-        )
+        energy_cost_result = await db.execute(select(func.sum(PrintArchive.energy_cost)))
         total_energy_cost = energy_cost_result.scalar() or 0
 
     return ArchiveStats(
@@ -595,9 +580,7 @@ async def update_archive(
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(PrintArchive)
-        .options(selectinload(PrintArchive.project))
-        .where(PrintArchive.id == archive_id)
+        select(PrintArchive).options(selectinload(PrintArchive.project)).where(PrintArchive.id == archive_id)
     )
     archive = result.scalar_one_or_none()
     if not archive:
@@ -610,9 +593,7 @@ async def update_archive(
 
     # Re-fetch with project relationship loaded after commit
     result = await db.execute(
-        select(PrintArchive)
-        .options(selectinload(PrintArchive.project))
-        .where(PrintArchive.id == archive_id)
+        select(PrintArchive).options(selectinload(PrintArchive.project)).where(PrintArchive.id == archive_id)
     )
     archive = result.scalar_one_or_none()
 
@@ -625,9 +606,7 @@ async def toggle_favorite(
     db: AsyncSession = Depends(get_db),
 ):
     """Toggle favorite status for an archive."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -643,9 +622,7 @@ async def rescan_archive(archive_id: int, db: AsyncSession = Depends(get_db)):
     """Rescan the 3MF file and update metadata."""
     from backend.app.services.archive import ThreeMFParser
 
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -683,9 +660,7 @@ async def rescan_archive(archive_id: int, db: AsyncSession = Depends(get_db)):
     # Calculate cost based on filament usage and type
     if archive.filament_used_grams and archive.filament_type:
         primary_type = archive.filament_type.split(",")[0].strip()
-        filament_result = await db.execute(
-            select(Filament).where(Filament.type == primary_type).limit(1)
-        )
+        filament_result = await db.execute(select(Filament).where(Filament.type == primary_type).limit(1))
         filament = filament_result.scalar_one_or_none()
         if filament:
             archive.cost = round((archive.filament_used_grams / 1000) * filament.cost_per_kg, 2)
@@ -789,9 +764,7 @@ async def get_archive_duplicates(archive_id: int, db: AsyncSession = Depends(get
 @router.post("/backfill-hashes")
 async def backfill_content_hashes(db: AsyncSession = Depends(get_db)):
     """Compute and store content hashes for all archives missing them."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.content_hash.is_(None))
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.content_hash.is_(None)))
     archives = list(result.scalars().all())
 
     updated = 0
@@ -913,7 +886,7 @@ async def scan_timelapse(
 ):
     """Scan printer for timelapse matching this archive and attach it."""
     from backend.app.models.printer import Printer
-    from backend.app.services.bambu_ftp import list_files_async, download_file_bytes_async
+    from backend.app.services.bambu_ftp import download_file_bytes_async, list_files_async
 
     service = ArchiveService(db)
     archive = await service.get_archive(archive_id)
@@ -975,7 +948,7 @@ async def scan_timelapse(
         for f in mp4_files:
             fname = f.get("name", "")
             # Parse timestamp from filename like "video_2025-11-24_03-17-40.mp4"
-            match = re.search(r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})', fname)
+            match = re.search(r"(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})", fname)
             if match:
                 try:
                     file_time = datetime.strptime(match.group(1), "%Y-%m-%d_%H-%M-%S")
@@ -1040,8 +1013,7 @@ async def scan_timelapse(
                         best_diff = diff
                         best_match = f
                         logger.debug(
-                            f"Timelapse mtime match candidate: {f.get('name')}, "
-                            f"mtime: {mtime}, diff from end: {diff}"
+                            f"Timelapse mtime match candidate: {f.get('name')}, mtime: {mtime}, diff from end: {diff}"
                         )
 
         if best_match and best_diff < timedelta(hours=2):
@@ -1052,6 +1024,7 @@ async def scan_timelapse(
     # This handles cases where printer clock is wrong or timezone issues exist
     if not matching_file and len(mp4_files) == 1:
         from datetime import datetime, timedelta
+
         archive_completed = archive.completed_at or archive.created_at
         if archive_completed:
             time_since_completion = datetime.now() - archive_completed
@@ -1084,18 +1057,14 @@ async def scan_timelapse(
         }
 
     # Download the timelapse - use the full path from the file listing
-    remote_path = matching_file.get('path') or f"/timelapse/{matching_file['name']}"
-    timelapse_data = await download_file_bytes_async(
-        printer.ip_address, printer.access_code, remote_path
-    )
+    remote_path = matching_file.get("path") or f"/timelapse/{matching_file['name']}"
+    timelapse_data = await download_file_bytes_async(printer.ip_address, printer.access_code, remote_path)
 
     if not timelapse_data:
         raise HTTPException(500, "Failed to download timelapse")
 
     # Attach timelapse to archive
-    success = await service.attach_timelapse(
-        archive_id, timelapse_data, matching_file["name"]
-    )
+    success = await service.attach_timelapse(archive_id, timelapse_data, matching_file["name"])
 
     if not success:
         raise HTTPException(500, "Failed to attach timelapse")
@@ -1115,7 +1084,7 @@ async def select_timelapse(
 ):
     """Manually select a timelapse from the printer to attach."""
     from backend.app.models.printer import Printer
-    from backend.app.services.bambu_ftp import list_files_async, download_file_bytes_async
+    from backend.app.services.bambu_ftp import download_file_bytes_async, list_files_async
 
     service = ArchiveService(db)
     archive = await service.get_archive(archive_id)
@@ -1125,9 +1094,7 @@ async def select_timelapse(
     if not archive.printer_id:
         raise HTTPException(400, "Archive has no associated printer")
 
-    result = await db.execute(
-        select(Printer).where(Printer.id == archive.printer_id)
-    )
+    result = await db.execute(select(Printer).where(Printer.id == archive.printer_id))
     printer = result.scalar_one_or_none()
     if not printer:
         raise HTTPException(404, "Printer not found")
@@ -1151,9 +1118,7 @@ async def select_timelapse(
         raise HTTPException(404, f"Timelapse '{filename}' not found on printer")
 
     # Download and attach
-    timelapse_data = await download_file_bytes_async(
-        printer.ip_address, printer.access_code, remote_path
-    )
+    timelapse_data = await download_file_bytes_async(printer.ip_address, printer.access_code, remote_path)
     if not timelapse_data:
         raise HTTPException(500, "Failed to download timelapse")
 
@@ -1196,6 +1161,7 @@ async def upload_timelapse(
 # Photo Endpoints
 # ============================================
 
+
 @router.post("/{archive_id}/photos")
 async def upload_photo(
     archive_id: int,
@@ -1203,9 +1169,7 @@ async def upload_photo(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a photo of the printed result."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -1221,6 +1185,7 @@ async def upload_photo(
 
     # Generate unique filename
     import uuid
+
     ext = Path(file.filename).suffix.lower()
     photo_filename = f"{uuid.uuid4().hex[:8]}{ext}"
     photo_path = photos_dir / photo_filename
@@ -1247,9 +1212,7 @@ async def get_photo(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a specific photo."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -1280,9 +1243,7 @@ async def delete_photo(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a photo."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -1309,6 +1270,7 @@ async def delete_photo(
 # QR Code Endpoint
 # ============================================
 
+
 @router.get("/{archive_id}/qrcode")
 async def get_qrcode(
     archive_id: int,
@@ -1318,17 +1280,14 @@ async def get_qrcode(
 ):
     """Generate a QR code that links to this archive."""
     import qrcode
-    from qrcode.image.styledpil import StyledPilImage
 
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
 
     # Build URL to archive detail page
-    base_url = str(request.base_url).rstrip('/')
+    base_url = str(request.base_url).rstrip("/")
     archive_url = f"{base_url}/archives?id={archive_id}"
 
     # Generate QR code
@@ -1355,9 +1314,7 @@ async def get_qrcode(
     return Response(
         content=buffer.getvalue(),
         media_type="image/png",
-        headers={
-            "Content-Disposition": f'inline; filename="qr_{archive.print_name or archive_id}.png"'
-        }
+        headers={"Content-Disposition": f'inline; filename="qr_{archive.print_name or archive_id}.png"'},
     )
 
 
@@ -1365,7 +1322,6 @@ async def get_qrcode(
 async def get_archive_capabilities(archive_id: int, db: AsyncSession = Depends(get_db)):
     """Check what viewing capabilities are available for this 3MF file."""
     import json
-    import re
 
     service = ArchiveService(db)
     archive = await service.get_archive(archive_id)
@@ -1381,39 +1337,39 @@ async def get_archive_capabilities(archive_id: int, db: AsyncSession = Depends(g
     build_volume = {"x": 256, "y": 256, "z": 256}  # Default to X1/P1 size
 
     try:
-        with zipfile.ZipFile(file_path, 'r') as zf:
+        with zipfile.ZipFile(file_path, "r") as zf:
             names = zf.namelist()
 
             # Check for G-code
-            has_gcode = any(n.startswith('Metadata/') and n.endswith('.gcode') for n in names)
+            has_gcode = any(n.startswith("Metadata/") and n.endswith(".gcode") for n in names)
 
             # Check for 3D model - need to look for actual mesh data
             for name in names:
-                if name.endswith('.model'):
+                if name.endswith(".model"):
                     try:
-                        content = zf.read(name).decode('utf-8')
+                        content = zf.read(name).decode("utf-8")
                         # Check if this model file contains actual mesh vertices
-                        if '<vertex' in content or '<mesh' in content:
+                        if "<vertex" in content or "<mesh" in content:
                             has_model = True
                             break
                     except Exception:
                         pass
 
             # Extract build volume from project settings
-            if 'Metadata/project_settings.config' in names:
+            if "Metadata/project_settings.config" in names:
                 try:
-                    config_content = zf.read('Metadata/project_settings.config').decode('utf-8')
+                    config_content = zf.read("Metadata/project_settings.config").decode("utf-8")
                     config_data = json.loads(config_content)
 
                     # Parse printable_area: ['0x0', '256x0', '256x256', '0x256']
-                    printable_area = config_data.get('printable_area', [])
+                    printable_area = config_data.get("printable_area", [])
                     if printable_area and len(printable_area) >= 3:
                         # Get max X and Y from the corner coordinates
                         max_x = 0
                         max_y = 0
                         for coord in printable_area:
-                            if 'x' in coord:
-                                parts = coord.split('x')
+                            if "x" in coord:
+                                parts = coord.split("x")
                                 if len(parts) == 2:
                                     try:
                                         x, y = int(parts[0]), int(parts[1])
@@ -1426,7 +1382,7 @@ async def get_archive_capabilities(archive_id: int, db: AsyncSession = Depends(g
                             build_volume["y"] = max_y
 
                     # Parse printable_height
-                    printable_height = config_data.get('printable_height')
+                    printable_height = config_data.get("printable_height")
                     if printable_height:
                         try:
                             build_volume["z"] = int(printable_height)
@@ -1458,17 +1414,17 @@ async def get_gcode(archive_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "File not found")
 
     try:
-        with zipfile.ZipFile(file_path, 'r') as zf:
+        with zipfile.ZipFile(file_path, "r") as zf:
             # Bambu 3MF files store G-code in Metadata/plate_X.gcode
-            gcode_files = [n for n in zf.namelist() if n.startswith('Metadata/') and n.endswith('.gcode')]
+            gcode_files = [n for n in zf.namelist() if n.startswith("Metadata/") and n.endswith(".gcode")]
             if not gcode_files:
                 raise HTTPException(
                     404,
-                    "No G-code found. This file hasn't been sliced yet - G-code is only available after slicing in Bambu Studio."
+                    "No G-code found. This file hasn't been sliced yet - G-code is only available after slicing in Bambu Studio.",
                 )
 
             # Get the first plate's G-code (usually plate_1.gcode)
-            gcode_content = zf.read(gcode_files[0]).decode('utf-8')
+            gcode_content = zf.read(gcode_files[0]).decode("utf-8")
             return Response(content=gcode_content, media_type="text/plain")
     except zipfile.BadZipFile:
         raise HTTPException(400, "Invalid 3MF file")
@@ -1540,11 +1496,13 @@ async def upload_archives_bulk(
             )
 
             if archive:
-                results.append({
-                    "filename": file.filename,
-                    "id": archive.id,
-                    "status": "success",
-                })
+                results.append(
+                    {
+                        "filename": file.filename,
+                        "id": archive.id,
+                        "status": "success",
+                    }
+                )
             else:
                 errors.append({"filename": file.filename, "error": "Failed to process"})
         except Exception as e:
@@ -1568,10 +1526,10 @@ async def reprint_archive(
     db: AsyncSession = Depends(get_db),
 ):
     """Send an archived 3MF file to a printer and start printing."""
+    from backend.app.main import register_expected_print
     from backend.app.models.printer import Printer
     from backend.app.services.bambu_ftp import upload_file_async
     from backend.app.services.printer_manager import printer_manager
-    from backend.app.main import register_expected_print
 
     # Get archive
     service = ArchiveService(db)
@@ -1589,14 +1547,30 @@ async def reprint_archive(
     if not printer_manager.is_connected(printer_id):
         raise HTTPException(400, "Printer is not connected")
 
-    # Get the 3MF file path
+    # Get the sliced 3MF file path
     file_path = settings.base_dir / archive.file_path
     if not file_path.exists():
         raise HTTPException(404, "Archive file not found")
 
     # Upload file to printer via FTP
-    remote_filename = archive.filename
-    remote_path = f"/cache/{remote_filename}"
+    from backend.app.services.bambu_ftp import delete_file_async
+
+    # Use a clean filename to avoid issues with double extensions like .gcode.3mf
+    # The printer might reject filenames with unusual extensions
+    base_name = archive.filename
+    if base_name.endswith(".gcode.3mf"):
+        base_name = base_name[:-10]  # Remove .gcode.3mf
+    elif base_name.endswith(".3mf"):
+        base_name = base_name[:-4]  # Remove .3mf
+    remote_filename = f"{base_name}.3mf"
+    remote_path = f"/{remote_filename}"
+
+    # Delete existing file if present (avoids 553 error)
+    await delete_file_async(
+        printer.ip_address,
+        printer.access_code,
+        remote_path,
+    )
 
     uploaded = await upload_file_async(
         printer.ip_address,
@@ -1611,8 +1585,23 @@ async def reprint_archive(
     # Register this as an expected print so we don't create a duplicate archive
     register_expected_print(printer_id, remote_filename, archive_id)
 
+    # Detect plate ID from 3MF file
+    plate_id = 1
+    try:
+        with zipfile.ZipFile(file_path, "r") as zf:
+            for name in zf.namelist():
+                if name.startswith("Metadata/plate_") and name.endswith(".gcode"):
+                    # Extract plate number from "Metadata/plate_X.gcode"
+                    plate_str = name[15:-6]  # Remove "Metadata/plate_" and ".gcode"
+                    plate_id = int(plate_str)
+                    break
+    except Exception:
+        pass  # Default to plate 1 if detection fails
+
+    logger.info(f"Reprint archive {archive_id}: using plate_id={plate_id}")
+
     # Start the print
-    started = printer_manager.start_print(printer_id, remote_filename)
+    started = printer_manager.start_print(printer_id, remote_filename, plate_id)
 
     if not started:
         raise HTTPException(500, "Failed to start print")
@@ -1629,11 +1618,12 @@ async def reprint_archive(
 # Project Page API
 # =============================================================================
 
+
 @router.get("/{archive_id}/project-page")
 async def get_project_page(archive_id: int, db: AsyncSession = Depends(get_db)):
     """Get the project page data from the 3MF file."""
-    from backend.app.services.archive import ProjectPageParser
     from backend.app.schemas.archive import ProjectPageResponse
+    from backend.app.services.archive import ProjectPageParser
 
     service = ArchiveService(db)
     archive = await service.get_archive(archive_id)
@@ -1715,6 +1705,7 @@ async def get_project_image(
 # Source 3MF API (Original Project Files)
 # =============================================================================
 
+
 @router.post("/{archive_id}/source")
 async def upload_source_3mf(
     archive_id: int,
@@ -1722,9 +1713,7 @@ async def upload_source_3mf(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload the original source 3MF project file for an archive."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -1770,9 +1759,7 @@ async def download_source_3mf(
     db: AsyncSession = Depends(get_db),
 ):
     """Download the source 3MF project file."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -1801,9 +1788,7 @@ async def download_source_3mf_for_slicer(
     db: AsyncSession = Depends(get_db),
 ):
     """Download source 3MF with filename in URL (for Bambu Studio compatibility)."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
@@ -1839,9 +1824,9 @@ async def upload_source_3mf_by_name(
     # Derive print name from filename if not provided
     if not print_name:
         # Remove .3mf extension and common suffixes
-        print_name = file.filename.rsplit('.3mf', 1)[0]
+        print_name = file.filename.rsplit(".3mf", 1)[0]
         # Remove _source suffix if present
-        if print_name.endswith('_source'):
+        if print_name.endswith("_source"):
             print_name = print_name[:-7]
 
     # Find matching archive - try exact match first, then fuzzy
@@ -1915,9 +1900,7 @@ async def delete_source_3mf(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete the source 3MF project file from an archive."""
-    result = await db.execute(
-        select(PrintArchive).where(PrintArchive.id == archive_id)
-    )
+    result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
     archive = result.scalar_one_or_none()
     if not archive:
         raise HTTPException(404, "Archive not found")
