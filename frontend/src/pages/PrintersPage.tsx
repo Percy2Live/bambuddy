@@ -553,6 +553,15 @@ function PrinterCard({
   }, [status?.wifi_signal]);
   const wifiSignal = status?.wifi_signal ?? cachedWifiSignal;
 
+  // Cache connected state to prevent flicker when status briefly becomes undefined
+  const cachedConnected = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (status?.connected !== undefined) {
+      cachedConnected.current = status.connected;
+    }
+  }, [status?.connected]);
+  const isConnected = status?.connected ?? cachedConnected.current;
+
   // Cache ams_extruder_map to prevent L/R indicators bouncing on updates
   const cachedAmsExtruderMap = useRef<Record<string, number>>({});
   useEffect(() => {
@@ -602,8 +611,8 @@ function PrinterCard({
   });
   const lastPrint = lastPrints?.[0];
 
-  // Determine if this card should be hidden
-  const shouldHide = hideIfDisconnected && status && !status.connected;
+  // Determine if this card should be hidden (use cached connected state to prevent flicker)
+  const shouldHide = hideIfDisconnected && isConnected === false;
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deletePrinter(printer.id),
