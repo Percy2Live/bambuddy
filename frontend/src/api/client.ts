@@ -1206,6 +1206,7 @@ export const api = {
     notes?: string;
     cost?: number;
     failure_reason?: string | null;
+    status?: string;
   }) =>
     request<Archive>(`/archives/${id}`, {
       method: 'PATCH',

@@ -39,7 +39,10 @@ def compute_time_accuracy(archive: PrintArchive) -> dict:
             if archive.print_time_seconds and archive.print_time_seconds > 0:
                 # Calculate accuracy as percentage
                 accuracy = (archive.print_time_seconds / actual_seconds) * 100
-                result["time_accuracy"] = round(accuracy, 1)
+                # Sanity check: skip unreasonable values (e.g., manually changed status)
+                # Valid range: 5% to 500% (print took 20x longer to 5x faster than estimated)
+                if 5 <= accuracy <= 500:
+                    result["time_accuracy"] = round(accuracy, 1)
 
     return result
 
