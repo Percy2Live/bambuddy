@@ -6,6 +6,8 @@ All notable changes to Bambuddy will be documented in this file.
 
 ### Added
 - **Timelapse editor** - Edit timelapse videos with trim, speed adjustment (0.25x-4x), and music overlay. Uses FFmpeg for server-side processing with browser-based preview.
+- **AMS filament preview** - Reprint modal shows filament comparison between what the print requires and what's currently loaded in the AMS. Compares both type and color with visual indicators (green=match, yellow=color mismatch, orange=type mismatch).
+- **File type badge** - Archive cards now show GCODE (green) or SOURCE (orange) badge to indicate whether the file is a sliced print-ready file or source-only.
 - **Docker printer discovery** - Subnet scanning for discovering printers when running in Docker with `network_mode: host`. Automatically detects Docker environment and shows subnet input field in Add Printer dialog.
 - **Printer model mapping** - Discovery now shows friendly model names (X1C, H2D, P1S) instead of raw SSDP codes (BL-P001, O1D, C11).
 - **Discovery API tests** - Comprehensive test coverage for discovery endpoints.

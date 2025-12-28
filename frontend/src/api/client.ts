@@ -1576,6 +1576,18 @@ export const api = {
     `${API_BASE}/archives/${archiveId}/project-image/${encodeURIComponent(imagePath)}`,
   getArchiveForSlicer: (id: number, filename: string) =>
     `${API_BASE}/archives/${id}/file/${encodeURIComponent(filename.endsWith('.3mf') ? filename : filename + '.3mf')}`,
+  getArchiveFilamentRequirements: (archiveId: number) =>
+    request<{
+      archive_id: number;
+      filename: string;
+      filaments: Array<{
+        slot_id: number;
+        type: string;
+        color: string;
+        used_grams: number;
+        used_meters: number;
+      }>;
+    }>(`/archives/${archiveId}/filament-requirements`),
   reprintArchive: (archiveId: number, printerId: number) =>
     request<{ status: string; printer_id: number; archive_id: number; filename: string }>(
       `/archives/${archiveId}/reprint?printer_id=${printerId}`,

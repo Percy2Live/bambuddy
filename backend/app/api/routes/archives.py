@@ -1733,6 +1733,75 @@ async def upload_archives_bulk(
     }
 
 
+@router.get("/{archive_id}/filament-requirements")
+async def get_filament_requirements(
+    archive_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get filament requirements from the archived 3MF file.
+
+    Returns the filaments used in this print with their slot IDs, types, colors,
+    and usage amounts. This can be compared with current AMS state before reprinting.
+    """
+    import xml.etree.ElementTree as ET
+
+    service = ArchiveService(db)
+    archive = await service.get_archive(archive_id)
+    if not archive:
+        raise HTTPException(404, "Archive not found")
+
+    file_path = settings.base_dir / archive.file_path
+    if not file_path.exists():
+        raise HTTPException(404, "Archive file not found")
+
+    filaments = []
+
+    try:
+        with zipfile.ZipFile(file_path, "r") as zf:
+            # Parse slice_info.config for filament requirements
+            if "Metadata/slice_info.config" in zf.namelist():
+                content = zf.read("Metadata/slice_info.config").decode()
+                root = ET.fromstring(content)
+
+                # Extract filament elements
+                # Format: <filament id="1" type="PLA" color="#FFFFFF" used_g="100" used_m="10" />
+                for filament_elem in root.findall(".//filament"):
+                    filament_id = filament_elem.get("id")
+                    filament_type = filament_elem.get("type", "")
+                    filament_color = filament_elem.get("color", "")
+                    used_g = filament_elem.get("used_g", "0")
+                    used_m = filament_elem.get("used_m", "0")
+
+                    # Only include filaments that are actually used
+                    try:
+                        used_grams = float(used_g)
+                    except (ValueError, TypeError):
+                        used_grams = 0
+
+                    if used_grams > 0 and filament_id:
+                        filaments.append(
+                            {
+                                "slot_id": int(filament_id),
+                                "type": filament_type,
+                                "color": filament_color,
+                                "used_grams": round(used_grams, 1),
+                                "used_meters": float(used_m) if used_m else 0,
+                            }
+                        )
+
+            # Sort by slot ID
+            filaments.sort(key=lambda x: x["slot_id"])
+
+    except Exception as e:
+        logger.warning(f"Failed to parse filament requirements from archive {archive_id}: {e}")
+
+    return {
+        "archive_id": archive_id,
+        "filename": archive.filename,
+        "filaments": filaments,
+    }
+
+
 @router.post("/{archive_id}/reprint")
 async def reprint_archive(
     archive_id: int,
