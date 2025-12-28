@@ -25,6 +25,7 @@ All notable changes to Bambuddy will be documented in this file.
 ### Fixed
 - **Notification module** - Fixed bug where notifications were sent even when printer was offline.
 - **Attachment uploads** - Fixed file attachments not persisting due to SQLAlchemy JSON column mutation detection.
+- **Camera stream stability** - Fixed stream stopping after a few minutes by increasing ffmpeg read timeout (10s→30s), adding buffer options, and implementing auto-reconnection with exponential backoff in the frontend.
 
 ## [0.1.5] - 2025-12-19
 

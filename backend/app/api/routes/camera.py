@@ -165,6 +165,9 @@ async def generate_rtsp_mjpeg_stream(
     # ffmpeg command to output MJPEG stream to stdout
     # -rtsp_transport tcp: Use TCP for reliability
     # -rtsp_flags prefer_tcp: Prefer TCP for RTSP
+    # -timeout: Connection timeout in microseconds (30 seconds)
+    # -buffer_size: Larger buffer for network jitter
+    # -max_delay: Maximum demuxing delay
     # -f mjpeg: Output as MJPEG
     # -q:v 5: Quality (lower = better, 2-10 is good range)
     # -r: Output framerate
@@ -174,6 +177,12 @@ async def generate_rtsp_mjpeg_stream(
         "tcp",
         "-rtsp_flags",
         "prefer_tcp",
+        "-timeout",
+        "30000000",  # 30 seconds in microseconds
+        "-buffer_size",
+        "1024000",  # 1MB buffer
+        "-max_delay",
+        "500000",  # 0.5 seconds max delay
         "-i",
         camera_url,
         "-f",
@@ -226,8 +235,8 @@ async def generate_rtsp_mjpeg_stream(
                 break
 
             try:
-                # Read chunk from ffmpeg
-                chunk = await asyncio.wait_for(process.stdout.read(8192), timeout=10.0)
+                # Read chunk from ffmpeg - use longer timeout for network hiccups
+                chunk = await asyncio.wait_for(process.stdout.read(8192), timeout=30.0)
 
                 if not chunk:
                     logger.warning("Camera stream ended (no more data)")
