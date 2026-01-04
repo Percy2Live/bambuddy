@@ -84,15 +84,15 @@ class TestVirtualPrinterManager:
             model="INVALID",
         )
 
-        # Should keep default model
-        assert manager._model == "BL-P001"
+        # Should keep default model (3DPrinter-X1-Carbon = X1C)
+        assert manager._model == "3DPrinter-X1-Carbon"
 
     @pytest.mark.asyncio
     async def test_configure_restarts_on_model_change(self, manager):
         """Verify model change restarts services when running."""
         # Simulate running state
         manager._enabled = True
-        manager._model = "BL-P001"
+        manager._model = "3DPrinter-X1-Carbon"
         manager._tasks = [MagicMock(done=MagicMock(return_value=False))]
         manager._stop = AsyncMock()
         manager._start = AsyncMock()
@@ -100,7 +100,7 @@ class TestVirtualPrinterManager:
         await manager.configure(
             enabled=True,
             access_code="12345678",
-            model="C11",
+            model="C11",  # P1P
         )
 
         # Should have stopped and started
@@ -115,7 +115,7 @@ class TestVirtualPrinterManager:
         """Verify get_status returns expected fields."""
         manager._enabled = True
         manager._mode = "immediate"
-        manager._model = "C11"
+        manager._model = "C11"  # P1P
         manager._pending_files = {"file1.3mf": Path("/tmp/file1.3mf")}
         # Simulate running tasks
         manager._tasks = [MagicMock(done=MagicMock(return_value=False))]
@@ -126,9 +126,9 @@ class TestVirtualPrinterManager:
         assert status["running"] is True
         assert status["mode"] == "immediate"
         assert status["name"] == "Bambuddy"
-        assert status["serial"] == "00M09A391800001"  # Constant X1C serial for cert stability
+        assert status["serial"] == "01S00A391800001"  # C11 (P1P) serial prefix
         assert status["model"] == "C11"
-        assert status["model_name"] == "P1S"
+        assert status["model_name"] == "P1P"
         assert status["pending_files"] == 1
 
     def test_get_status_when_stopped(self, manager):
