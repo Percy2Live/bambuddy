@@ -442,8 +442,6 @@ async def on_print_start(printer_id: int, data: dict):
         if expected_archive_id:
             # This is a reprint/scheduled print - use existing archive, don't create new one
             logger.info(f"Using expected archive {expected_archive_id} for print (skipping duplicate)")
-            from datetime import datetime
-
             from backend.app.models.archive import PrintArchive
 
             result = await db.execute(select(PrintArchive).where(PrintArchive.id == expected_archive_id))
