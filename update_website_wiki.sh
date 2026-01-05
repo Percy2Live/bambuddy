@@ -1,5 +1,10 @@
 #!/bin/bash
 
+cd ../bambuddy-telemetry
+git add .
+git commit -m "Updated telemetry"
+git push
+
 cd ../bambuddy-website
 git add .
 git commit -m "Updated website"

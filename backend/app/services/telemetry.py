@@ -6,10 +6,11 @@ import uuid
 from datetime import datetime, timedelta
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import APP_VERSION
+from backend.app.models.printer import Printer
 from backend.app.models.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,17 @@ async def get_telemetry_url(db: AsyncSession) -> str:
     return setting.value if setting else DEFAULT_TELEMETRY_URL
 
 
+async def get_printer_model_counts(db: AsyncSession) -> dict[str, int]:
+    """Get count of each printer model configured in BamBuddy."""
+    result = await db.execute(select(Printer.model, func.count(Printer.id)).group_by(Printer.model))
+    counts = {}
+    for model, count in result.all():
+        # Normalize model name (handle None/empty)
+        model_name = model if model else "Unknown"
+        counts[model_name] = count
+    return counts
+
+
 async def send_heartbeat(db: AsyncSession) -> bool:
     """Send anonymous heartbeat to telemetry server."""
     global _last_heartbeat
@@ -80,6 +92,7 @@ async def send_heartbeat(db: AsyncSession) -> bool:
 
         installation_id = await get_or_create_installation_id(db)
         telemetry_url = await get_telemetry_url(db)
+        printer_models = await get_printer_model_counts(db)
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
@@ -87,6 +100,7 @@ async def send_heartbeat(db: AsyncSession) -> bool:
                 json={
                     "installation_id": installation_id,
                     "version": APP_VERSION,
+                    "printer_models": printer_models,
                 },
             )
             response.raise_for_status()

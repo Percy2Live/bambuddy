@@ -2174,6 +2174,10 @@ export function SettingsPage() {
                     <CheckCircle className="w-4 h-4 text-bambu-green mt-0.5 shrink-0" />
                     <span>{t('settings.telemetryInfoItem3')}</span>
                   </li>
+                  <li className="flex items-start gap-2 text-bambu-gray">
+                    <CheckCircle className="w-4 h-4 text-bambu-green mt-0.5 shrink-0" />
+                    <span>{t('settings.telemetryInfoItem4')}</span>
+                  </li>
                 </ul>
               </div>
 
