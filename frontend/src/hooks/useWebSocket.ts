@@ -196,10 +196,8 @@ export function useWebSocket() {
         break;
 
       case 'print_complete':
-        // Refetch printer status when print completes to clear printable_objects_count
-        if (message.printer_id !== undefined) {
-          queryClient.invalidateQueries({ queryKey: ['printerStatus', message.printer_id] });
-        }
+        // Don't invalidate printerStatus here - it causes re-render cascade and browser freeze
+        // The printer_status websocket messages will naturally update the status
         debouncedInvalidate('archives');
         debouncedInvalidate('archiveStats');
         break;

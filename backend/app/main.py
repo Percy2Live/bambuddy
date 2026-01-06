@@ -1168,7 +1168,7 @@ async def on_print_complete(printer_id: int, data: dict):
         try:
             logger.info(f"[PHOTO-BG] Starting finish photo capture for archive {archive_id}")
 
-            from backend.app.api.routes.camera import _active_streams, get_buffered_frame
+            from backend.app.api.routes.camera import _active_chamber_streams, _active_streams, get_buffered_frame
 
             async with async_session() as db:
                 from backend.app.api.routes.settings import get_setting
@@ -1196,10 +1196,14 @@ async def on_print_complete(printer_id: int, data: dict):
                             photo_filename = None
 
                             # Check if camera stream is active - use buffered frame to avoid freeze
+                            # Check both RTSP streams (_active_streams) and chamber image streams (_active_chamber_streams)
                             active_for_printer = [k for k in _active_streams if k.startswith(f"{printer_id}-")]
+                            active_chamber_for_printer = [
+                                k for k in _active_chamber_streams if k.startswith(f"{printer_id}-")
+                            ]
                             buffered_frame = get_buffered_frame(printer_id)
 
-                            if active_for_printer and buffered_frame:
+                            if (active_for_printer or active_chamber_for_printer) and buffered_frame:
                                 # Use frame from active stream
                                 logger.info("[PHOTO-BG] Using buffered frame from active stream")
                                 photos_dir = archive_dir / "photos"
