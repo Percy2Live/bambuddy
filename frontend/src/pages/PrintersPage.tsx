@@ -1034,6 +1034,7 @@ function PrinterCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['printers'] });
       queryClient.invalidateQueries({ queryKey: ['archives'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenanceOverview'] });
     },
   });
 
@@ -3674,6 +3675,7 @@ export function PrintersPage() {
     mutationFn: api.createPrinter,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['printers'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenanceOverview'] });
       setShowAddModal(false);
     },
   });

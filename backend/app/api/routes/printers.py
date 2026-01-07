@@ -117,7 +117,10 @@ async def delete_printer(
         delete_archives: If True (default), delete all print archives for this printer.
                         If False, keep archives but remove their printer association.
     """
+    from sqlalchemy import delete as sql_delete
+
     from backend.app.models.archive import PrintArchive
+    from backend.app.models.maintenance import MaintenanceHistory, PrinterMaintenance
 
     result = await db.execute(select(Printer).where(Printer.id == printer_id))
     printer = result.scalar_one_or_none()
@@ -131,6 +134,19 @@ async def delete_printer(
         from sqlalchemy import update
 
         await db.execute(update(PrintArchive).where(PrintArchive.printer_id == printer_id).values(printer_id=None))
+
+    # Delete maintenance history and items for this printer
+    # (SQLite doesn't enforce FK cascades, so do it explicitly)
+    maintenance_ids = (
+        (await db.execute(select(PrinterMaintenance.id).where(PrinterMaintenance.printer_id == printer_id)))
+        .scalars()
+        .all()
+    )
+    if maintenance_ids:
+        await db.execute(
+            sql_delete(MaintenanceHistory).where(MaintenanceHistory.printer_maintenance_id.in_(maintenance_ids))
+        )
+        await db.execute(sql_delete(PrinterMaintenance).where(PrinterMaintenance.printer_id == printer_id))
 
     await db.delete(printer)
     await db.commit()
