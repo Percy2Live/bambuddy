@@ -272,7 +272,7 @@ class PrintScheduler:
         remote_path = f"/cache/{remote_filename}"
 
         # Get FTP retry settings
-        ftp_retry_enabled, ftp_retry_count, ftp_retry_delay = await get_ftp_retry_settings()
+        ftp_retry_enabled, ftp_retry_count, ftp_retry_delay, ftp_timeout = await get_ftp_retry_settings()
 
         try:
             if ftp_retry_enabled:
@@ -282,6 +282,8 @@ class PrintScheduler:
                     printer.access_code,
                     file_path,
                     remote_path,
+                    socket_timeout=ftp_timeout,
+                    printer_model=printer.model,
                     max_retries=ftp_retry_count,
                     retry_delay=ftp_retry_delay,
                     operation_name=f"Upload print to {printer.name}",
@@ -292,6 +294,8 @@ class PrintScheduler:
                     printer.access_code,
                     file_path,
                     remote_path,
+                    socket_timeout=ftp_timeout,
+                    printer_model=printer.model,
                 )
         except Exception as e:
             uploaded = False

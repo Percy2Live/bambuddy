@@ -15,11 +15,16 @@ T = TypeVar("T")
 
 
 class ImplicitFTP_TLS(FTP_TLS):
-    """FTP_TLS subclass for implicit FTPS (port 990) with session reuse."""
+    """FTP_TLS subclass for implicit FTPS (port 990) with optional session reuse.
 
-    def __init__(self, *args, **kwargs):
+    SSL session reuse is required by X1C/P1S printers (vsFTPd), but causes issues
+    with A1/A1 Mini printers. Set skip_session_reuse=True for A1 printers.
+    """
+
+    def __init__(self, *args, skip_session_reuse: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self._sock = None
+        self.skip_session_reuse = skip_session_reuse
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
         self.ssl_context.verify_mode = ssl.CERT_NONE
@@ -44,15 +49,27 @@ class ImplicitFTP_TLS(FTP_TLS):
         return self.welcome
 
     def ntransfercmd(self, cmd, rest=None):
-        """Override to reuse SSL session for data connection (required by vsFTPd)."""
+        """Override to wrap data connection in SSL.
+
+        Session reuse is required by X1C/P1S (vsFTPd) but breaks A1/A1 Mini printers.
+        When skip_session_reuse is True, we still encrypt the data channel but
+        don't reuse the control connection's session.
+        """
         conn, size = FTP.ntransfercmd(self, cmd, rest)
         if self._prot_p:
-            # Reuse the SSL session from the control connection
-            conn = self.ssl_context.wrap_socket(
-                conn,
-                server_hostname=self.host,
-                session=self.sock.session,  # Reuse session!
-            )
+            if self.skip_session_reuse:
+                # A1/A1 Mini: Don't reuse session (causes timeouts/hangs)
+                conn = self.ssl_context.wrap_socket(
+                    conn,
+                    server_hostname=self.host,
+                )
+            else:
+                # X1C/P1S: Reuse SSL session (required by vsFTPd)
+                conn = self.ssl_context.wrap_socket(
+                    conn,
+                    server_hostname=self.host,
+                    session=self.sock.session,
+                )
         return conn, size
 
 
@@ -60,18 +77,39 @@ class BambuFTPClient:
     """FTP client for retrieving files from Bambu Lab printers."""
 
     FTP_PORT = 990
+    DEFAULT_TIMEOUT = 30  # Default timeout in seconds (increased for A1 printers)
+    # Models that need SSL session reuse disabled (A1 series has FTP issues with session reuse)
+    SKIP_SESSION_REUSE_MODELS = ("A1", "A1 Mini")
 
-    def __init__(self, ip_address: str, access_code: str):
+    def __init__(
+        self,
+        ip_address: str,
+        access_code: str,
+        timeout: float | None = None,
+        printer_model: str | None = None,
+    ):
         self.ip_address = ip_address
         self.access_code = access_code
+        self.timeout = timeout if timeout is not None else self.DEFAULT_TIMEOUT
+        self.printer_model = printer_model
         self._ftp: ImplicitFTP_TLS | None = None
+
+    def _should_skip_session_reuse(self) -> bool:
+        """Check if this printer model needs SSL session reuse disabled."""
+        if not self.printer_model:
+            return False
+        return self.printer_model in self.SKIP_SESSION_REUSE_MODELS
 
     def connect(self) -> bool:
         """Connect to the printer FTP server (implicit FTPS on port 990)."""
         try:
-            logger.debug(f"FTP connecting to {self.ip_address}:{self.FTP_PORT}")
-            self._ftp = ImplicitFTP_TLS()
-            self._ftp.connect(self.ip_address, self.FTP_PORT, timeout=10)
+            skip_reuse = self._should_skip_session_reuse()
+            logger.debug(
+                f"FTP connecting to {self.ip_address}:{self.FTP_PORT} "
+                f"(timeout={self.timeout}s, model={self.printer_model}, skip_session_reuse={skip_reuse})"
+            )
+            self._ftp = ImplicitFTP_TLS(skip_session_reuse=skip_reuse)
+            self._ftp.connect(self.ip_address, self.FTP_PORT, timeout=self.timeout)
             logger.debug("FTP connected, logging in as bblp")
             self._ftp.login("bblp", self.access_code)
             logger.debug("FTP logged in, setting prot_p and passive mode")
@@ -314,12 +352,24 @@ async def download_file_async(
     remote_path: str,
     local_path: Path,
     timeout: float = 60.0,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> bool:
-    """Async wrapper for downloading a file with timeout."""
+    """Async wrapper for downloading a file with timeout.
+
+    Args:
+        ip_address: Printer IP address
+        access_code: Printer access code
+        remote_path: Remote file path on printer
+        local_path: Local path to save file
+        timeout: Overall operation timeout (asyncio)
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _download():
-        client = BambuFTPClient(ip_address, access_code)
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if client.connect():
             try:
                 return client.download_to_file(remote_path, local_path)
@@ -339,12 +389,19 @@ async def download_file_try_paths_async(
     access_code: str,
     remote_paths: list[str],
     local_path: Path,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> bool:
-    """Try downloading a file from multiple paths using a single connection."""
+    """Try downloading a file from multiple paths using a single connection.
+
+    Args:
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _download():
-        client = BambuFTPClient(ip_address, access_code)
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if not client.connect():
             return False
 
@@ -363,13 +420,28 @@ async def upload_file_async(
     remote_path: str,
     timeout: float = 600.0,
     progress_callback: Callable[[int, int], None] | None = None,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> bool:
-    """Async wrapper for uploading a file with timeout and progress callback."""
+    """Async wrapper for uploading a file with timeout and progress callback.
+
+    Args:
+        ip_address: Printer IP address
+        access_code: Printer access code
+        local_path: Local file path to upload
+        remote_path: Remote path on printer
+        timeout: Overall operation timeout (asyncio)
+        progress_callback: Optional callback for progress updates
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _upload():
-        logger.info(f"FTP connecting to {ip_address} for upload...")
-        client = BambuFTPClient(ip_address, access_code)
+        logger.info(
+            f"FTP connecting to {ip_address} for upload (model={printer_model}, socket_timeout={socket_timeout}s)..."
+        )
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if client.connect():
             logger.info(f"FTP connected to {ip_address}")
             try:
@@ -391,12 +463,19 @@ async def list_files_async(
     access_code: str,
     path: str = "/",
     timeout: float = 30.0,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> list[dict]:
-    """Async wrapper for listing files with timeout."""
+    """Async wrapper for listing files with timeout.
+
+    Args:
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _list():
-        client = BambuFTPClient(ip_address, access_code)
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if client.connect():
             try:
                 return client.list_files(path)
@@ -415,12 +494,19 @@ async def delete_file_async(
     ip_address: str,
     access_code: str,
     remote_path: str,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> bool:
-    """Async wrapper for deleting a file."""
+    """Async wrapper for deleting a file.
+
+    Args:
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _delete():
-        client = BambuFTPClient(ip_address, access_code)
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if client.connect():
             try:
                 return client.delete_file(remote_path)
@@ -435,12 +521,19 @@ async def download_file_bytes_async(
     ip_address: str,
     access_code: str,
     remote_path: str,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> bytes | None:
-    """Async wrapper for downloading file as bytes."""
+    """Async wrapper for downloading file as bytes.
+
+    Args:
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _download():
-        client = BambuFTPClient(ip_address, access_code)
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if client.connect():
             try:
                 return client.download_file(remote_path)
@@ -454,12 +547,19 @@ async def download_file_bytes_async(
 async def get_storage_info_async(
     ip_address: str,
     access_code: str,
+    socket_timeout: float | None = None,
+    printer_model: str | None = None,
 ) -> dict | None:
-    """Async wrapper for getting storage info."""
+    """Async wrapper for getting storage info.
+
+    Args:
+        socket_timeout: FTP socket timeout for slow connections (e.g., A1 printers)
+        printer_model: Printer model for A1-specific workarounds
+    """
     loop = asyncio.get_event_loop()
 
     def _get_storage():
-        client = BambuFTPClient(ip_address, access_code)
+        client = BambuFTPClient(ip_address, access_code, timeout=socket_timeout, printer_model=printer_model)
         if client.connect():
             try:
                 return client.get_storage_info()
@@ -470,8 +570,12 @@ async def get_storage_info_async(
     return await loop.run_in_executor(None, _get_storage)
 
 
-async def get_ftp_retry_settings() -> tuple[bool, int, float]:
-    """Get FTP retry settings from database."""
+async def get_ftp_retry_settings() -> tuple[bool, int, float, float]:
+    """Get FTP retry settings from database.
+
+    Returns:
+        Tuple of (retry_enabled, retry_count, retry_delay, timeout)
+    """
     from backend.app.api.routes.settings import get_setting
     from backend.app.core.database import async_session
 
@@ -479,7 +583,8 @@ async def get_ftp_retry_settings() -> tuple[bool, int, float]:
         enabled = (await get_setting(db, "ftp_retry_enabled") or "true") == "true"
         count = int(await get_setting(db, "ftp_retry_count") or "3")
         delay = float(await get_setting(db, "ftp_retry_delay") or "2")
-    return enabled, count, delay
+        timeout = float(await get_setting(db, "ftp_timeout") or "30")
+    return enabled, count, delay, timeout
 
 
 async def with_ftp_retry(

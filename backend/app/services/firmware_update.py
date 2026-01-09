@@ -302,7 +302,7 @@ class FirmwareUpdateService:
                         asyncio.run_coroutine_threadsafe(self._broadcast_progress(printer_id, state), loop)
 
             # Get FTP retry settings
-            ftp_retry_enabled, ftp_retry_count, ftp_retry_delay = await get_ftp_retry_settings()
+            ftp_retry_enabled, ftp_retry_count, ftp_retry_delay, ftp_timeout = await get_ftp_retry_settings()
 
             if ftp_retry_enabled:
                 success = await with_ftp_retry(
@@ -312,6 +312,8 @@ class FirmwareUpdateService:
                     firmware_path,
                     remote_path,
                     progress_callback=on_upload_progress,
+                    socket_timeout=ftp_timeout,
+                    printer_model=model,
                     max_retries=ftp_retry_count,
                     retry_delay=ftp_retry_delay,
                     operation_name=f"Upload firmware to printer {printer_id}",
@@ -323,6 +325,8 @@ class FirmwareUpdateService:
                     firmware_path,
                     remote_path,
                     progress_callback=on_upload_progress,
+                    socket_timeout=ftp_timeout,
+                    printer_model=model,
                 )
 
             if not success:

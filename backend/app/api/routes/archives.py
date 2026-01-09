@@ -1088,7 +1088,7 @@ async def scan_timelapse(
     remote_path = matching_file.get("path") or f"/timelapse/{matching_file['name']}"
 
     # Get FTP retry settings
-    ftp_retry_enabled, ftp_retry_count, ftp_retry_delay = await get_ftp_retry_settings()
+    ftp_retry_enabled, ftp_retry_count, ftp_retry_delay, ftp_timeout = await get_ftp_retry_settings()
 
     if ftp_retry_enabled:
         timelapse_data = await with_ftp_retry(
@@ -1096,12 +1096,20 @@ async def scan_timelapse(
             printer.ip_address,
             printer.access_code,
             remote_path,
+            socket_timeout=ftp_timeout,
+            printer_model=printer.model,
             max_retries=ftp_retry_count,
             retry_delay=ftp_retry_delay,
             operation_name=f"Download timelapse {matching_file['name']}",
         )
     else:
-        timelapse_data = await download_file_bytes_async(printer.ip_address, printer.access_code, remote_path)
+        timelapse_data = await download_file_bytes_async(
+            printer.ip_address,
+            printer.access_code,
+            remote_path,
+            socket_timeout=ftp_timeout,
+            printer_model=printer.model,
+        )
 
     if not timelapse_data:
         raise HTTPException(500, "Failed to download timelapse")
@@ -1166,7 +1174,7 @@ async def select_timelapse(
         raise HTTPException(404, f"Timelapse '{filename}' not found on printer")
 
     # Download and attach
-    ftp_retry_enabled, ftp_retry_count, ftp_retry_delay = await get_ftp_retry_settings()
+    ftp_retry_enabled, ftp_retry_count, ftp_retry_delay, ftp_timeout = await get_ftp_retry_settings()
 
     if ftp_retry_enabled:
         timelapse_data = await with_ftp_retry(
@@ -1174,12 +1182,20 @@ async def select_timelapse(
             printer.ip_address,
             printer.access_code,
             remote_path,
+            socket_timeout=ftp_timeout,
+            printer_model=printer.model,
             max_retries=ftp_retry_count,
             retry_delay=ftp_retry_delay,
             operation_name=f"Download timelapse {filename}",
         )
     else:
-        timelapse_data = await download_file_bytes_async(printer.ip_address, printer.access_code, remote_path)
+        timelapse_data = await download_file_bytes_async(
+            printer.ip_address,
+            printer.access_code,
+            remote_path,
+            socket_timeout=ftp_timeout,
+            printer_model=printer.model,
+        )
 
     if not timelapse_data:
         raise HTTPException(500, "Failed to download timelapse")
@@ -2071,15 +2087,17 @@ async def reprint_archive(
     remote_filename = f"{base_name}.3mf"
     remote_path = f"/{remote_filename}"
 
+    # Get FTP retry settings
+    ftp_retry_enabled, ftp_retry_count, ftp_retry_delay, ftp_timeout = await get_ftp_retry_settings()
+
     # Delete existing file if present (avoids 553 error)
     await delete_file_async(
         printer.ip_address,
         printer.access_code,
         remote_path,
+        socket_timeout=ftp_timeout,
+        printer_model=printer.model,
     )
-
-    # Get FTP retry settings
-    ftp_retry_enabled, ftp_retry_count, ftp_retry_delay = await get_ftp_retry_settings()
 
     if ftp_retry_enabled:
         uploaded = await with_ftp_retry(
@@ -2088,6 +2106,8 @@ async def reprint_archive(
             printer.access_code,
             file_path,
             remote_path,
+            socket_timeout=ftp_timeout,
+            printer_model=printer.model,
             max_retries=ftp_retry_count,
             retry_delay=ftp_retry_delay,
             operation_name=f"Upload for reprint to {printer.name}",
@@ -2098,6 +2118,8 @@ async def reprint_archive(
             printer.access_code,
             file_path,
             remote_path,
+            socket_timeout=ftp_timeout,
+            printer_model=printer.model,
         )
 
     if not uploaded:

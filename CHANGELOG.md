@@ -26,8 +26,14 @@ All notable changes to Bambuddy will be documented in this file.
 - **FTP retry for unreliable WiFi** - Configurable retry logic for all FTP operations:
   - Enable/disable retry in Settings > General > FTP Retry
   - Configure retry count (1-10 attempts) and delay (1-30 seconds)
+  - Configurable connection timeout (10-120 seconds, default 30s)
   - Applies to: 3MF archiving, print uploads, timelapse downloads, firmware updates
   - Helps P1S, X1C, and other printers with weak WiFi connections
+- **A1/A1 Mini FTP fix** - Resolved FTP upload failures on A1 series printers:
+  - A1 printers don't support SSL session reuse on data connections
+  - Automatic detection and workaround for A1 and A1 Mini models
+  - Maintains full encryption while skipping problematic session reuse
+  - Fixes "read operation timed out" errors during file uploads
 
 ### Fixed
 - **QR code endpoint** - Fixed 500 error on archive QR code generation:

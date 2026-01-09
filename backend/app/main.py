@@ -590,7 +590,7 @@ async def on_print_start(printer_id: int, data: dict):
         downloaded_filename = None
 
         # Get FTP retry settings
-        ftp_retry_enabled, ftp_retry_count, ftp_retry_delay = await get_ftp_retry_settings()
+        ftp_retry_enabled, ftp_retry_count, ftp_retry_delay, ftp_timeout = await get_ftp_retry_settings()
 
         for try_filename in possible_names:
             if not try_filename.endswith(".3mf"):
@@ -615,6 +615,8 @@ async def on_print_start(printer_id: int, data: dict):
                             printer.access_code,
                             remote_path,
                             temp_path,
+                            socket_timeout=ftp_timeout,
+                            printer_model=printer.model,
                             max_retries=ftp_retry_count,
                             retry_delay=ftp_retry_delay,
                             operation_name=f"Download 3MF from {remote_path}",
@@ -625,6 +627,8 @@ async def on_print_start(printer_id: int, data: dict):
                             printer.access_code,
                             remote_path,
                             temp_path,
+                            socket_timeout=ftp_timeout,
+                            printer_model=printer.model,
                         )
                     if downloaded:
                         downloaded_filename = try_filename

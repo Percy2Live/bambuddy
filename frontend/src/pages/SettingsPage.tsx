@@ -347,7 +347,8 @@ export function SettingsPage() {
       settings.default_printer_id !== localSettings.default_printer_id ||
       settings.ftp_retry_enabled !== localSettings.ftp_retry_enabled ||
       settings.ftp_retry_count !== localSettings.ftp_retry_count ||
-      settings.ftp_retry_delay !== localSettings.ftp_retry_delay;
+      settings.ftp_retry_delay !== localSettings.ftp_retry_delay ||
+      settings.ftp_timeout !== localSettings.ftp_timeout;
 
     if (!hasChanges) {
       return;
@@ -383,6 +384,7 @@ export function SettingsPage() {
         ftp_retry_enabled: localSettings.ftp_retry_enabled,
         ftp_retry_count: localSettings.ftp_retry_count,
         ftp_retry_delay: localSettings.ftp_retry_delay,
+        ftp_timeout: localSettings.ftp_timeout,
       };
       updateMutation.mutate(settingsToSave);
     }, 500);
@@ -1086,6 +1088,26 @@ export function SettingsPage() {
                   </div>
                 </div>
               )}
+
+              <div className="pt-2 border-t border-bambu-dark-tertiary">
+                <label className="block text-sm text-bambu-gray mb-1">
+                  Connection timeout
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="10"
+                    max="120"
+                    value={localSettings.ftp_timeout ?? 30}
+                    onChange={(e) => updateSetting('ftp_timeout', Math.min(120, Math.max(10, parseInt(e.target.value) || 30)))}
+                    className="w-24 px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+                  />
+                  <span className="text-bambu-gray">seconds</span>
+                </div>
+                <p className="text-xs text-bambu-gray mt-1">
+                  Socket timeout for slow connections. Increase for A1/A1 Mini printers with weak WiFi (10-120)
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

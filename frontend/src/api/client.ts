@@ -568,6 +568,7 @@ export interface AppSettings {
   ftp_retry_enabled: boolean;
   ftp_retry_count: number;
   ftp_retry_delay: number;
+  ftp_timeout: number;
 }
 
 export type AppSettingsUpdate = Partial<AppSettings>;
