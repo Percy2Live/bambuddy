@@ -27,13 +27,32 @@ router = APIRouter(prefix="/queue", tags=["queue"])
 
 def _enrich_response(item: PrintQueueItem) -> PrintQueueItemResponse:
     """Add nested archive/printer info to response."""
-    response = PrintQueueItemResponse.model_validate(item)
-    # Parse ams_mapping from JSON string
+    # Parse ams_mapping from JSON string BEFORE model_validate
+    ams_mapping_parsed = None
     if item.ams_mapping:
         try:
-            response.ams_mapping = json.loads(item.ams_mapping)
+            ams_mapping_parsed = json.loads(item.ams_mapping)
         except json.JSONDecodeError:
-            response.ams_mapping = None
+            ams_mapping_parsed = None
+
+    # Create response with parsed ams_mapping
+    item_dict = {
+        "id": item.id,
+        "printer_id": item.printer_id,
+        "archive_id": item.archive_id,
+        "position": item.position,
+        "scheduled_time": item.scheduled_time,
+        "require_previous_success": item.require_previous_success,
+        "auto_off_after": item.auto_off_after,
+        "manual_start": item.manual_start,
+        "ams_mapping": ams_mapping_parsed,
+        "status": item.status,
+        "started_at": item.started_at,
+        "completed_at": item.completed_at,
+        "error_message": item.error_message,
+        "created_at": item.created_at,
+    }
+    response = PrintQueueItemResponse(**item_dict)
     if item.archive:
         response.archive_name = item.archive.print_name or item.archive.filename
         response.archive_thumbnail = item.archive.thumbnail_path

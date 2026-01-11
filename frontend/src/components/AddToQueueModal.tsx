@@ -7,36 +7,65 @@ import { Card, CardContent } from './Card';
 import { Button } from './Button';
 import { useToast } from '../contexts/ToastContext';
 
-// Bambu Lab filament color mapping by tray_id_name (subset of most common)
-const BAMBU_COLORS: Record<string, string> = {
-  'A00-W1': 'Jade White', 'A00-Y2': 'Sunflower Yellow', 'A00-R0': 'Red', 'A00-K0': 'Black',
-  'A00-G1': 'Bambu Green', 'A00-B3': 'Cobalt Blue', 'A00-D0': 'Gray', 'A00-D3': 'Dark Gray',
-  'A01-W2': 'Ivory White', 'A01-R1': 'Scarlet Red', 'A01-G1': 'Grass Green', 'A01-B3': 'Marine Blue',
-  'G02-W0': 'White', 'G02-K0': 'Black', 'G02-R0': 'Red', 'G02-D0': 'Gray', 'G02-B0': 'Blue',
-  'B00-W0': 'White', 'B00-K0': 'Black', 'B00-R0': 'Red',
+// Bambu Lab filament hex color to name mapping (from bambu-color-names.csv)
+const BAMBU_HEX_COLORS: Record<string, string> = {
+  '000000': 'Black', '001489': 'Blue', '002e96': 'Blue', '0047bb': 'Blue', '00482b': 'Pine Green',
+  '004ea8': 'Blue', '0056b8': 'Cobalt Blue', '0069b1': 'Lake Blue', '0072ce': 'Blue', '0078bf': 'Marine Blue',
+  '0085ad': 'Light Blue', '0086d6': 'Cyan', '008bda': 'Blue', '009639': 'Green', '009bd8': 'Cyan',
+  '009fa1': 'Teal', '00a6a0': 'Green', '00ae42': 'Bambu Green', '00b1b7': 'Turquoise', '00bb31': 'Green',
+  '018814': 'Candy Green', '042f56': 'Dark Blue', '0a2989': 'Blue', '0a2ca5': 'Blue', '0c2340': 'Navy Blue',
+  '0c3b95': 'Blue', '101820': 'Black', '147bd1': 'Blue', '164b35': 'Green', '16b08e': 'Malachite Green',
+  '1d7c6a': 'Oxide Green Metallic', '1f79e5': 'Lake Blue', '2140b4': 'Blue', '25282a': 'Black', '2842ad': 'Royal Blue',
+  '2d2b28': 'Onyx Black Sparkle', '324585': 'Indigo Blue', '353533': 'Gray', '39541a': 'Forest Green',
+  '39699e': 'Cobalt Blue Metallic', '3b665e': 'Green', '3f5443': 'Alpine Green Sparkle', '3f8e43': 'Mistletoe Green',
+  '424379': 'Nebulae', '43403d': 'Iron Gray Metallic', '482960': 'Indigo Purple', '483d8b': 'Royal Purple Sparkle',
+  '489fdf': 'Azure', '4c241c': 'Rosewood', '4ce4a0': 'Green', '4d3324': 'Dark Chocolate', '4d5054': 'Lava Gray',
+  '4dafda': 'Cyan', '4f3f24': 'Black Walnut', '515151': 'Dark Gray', '515a6c': 'Gray', '545454': 'Dark Gray',
+  '565656': 'Titan Gray', '56b7e6': 'Sky Blue', '583061': 'Violet Purple', '5898dd': 'Blue', '594177': 'Purple',
+  '5b492f': 'Brown', '5b6579': 'Blue Gray', '5c9748': 'Matcha Green', '5e43b7': 'Purple', '5e4b3c': 'Copper',
+  '5f6367': 'Titan Gray', '61b0ff': 'Translucent Light Blue', '61bf36': 'Green', '61c680': 'Grass Green',
+  '6667ab': 'Lavender Blue', '684a43': 'Brown', '686865': 'Black', '68724d': 'Dark Green', '688197': 'Blue Gray',
+  '69398e': 'Iris Purple', '6e88bc': 'Jeans Blue', '6ee53c': 'Lime Green', '6f5034': 'Cocoa Brown', '7248bd': 'Lavender',
+  '748c45': 'Translucent Olive', '757575': 'Nardo Gray', '75aed8': 'Blue', '77edd7': 'Translucent Teal', '789d4a': 'Olive',
+  '792b36': 'Crimson Red Sparkle', '7ac0e9': 'Glow Blue', '7ae1bf': 'Mint', '7cd82b': 'Lime Green', '7d6556': 'Dark Brown',
+  '8344b0': 'Purple', '847d48': 'Bronze', '854ce4': 'Purple', '8671cb': 'Purple', '875718': 'Peanut Brown',
+  '87909a': 'Silver', '898d8d': 'Gray', '8a949e': 'Gray', '8e8e8e': 'Translucent Gray', '8e9089': 'Gray',
+  '90ff1a': 'Neon Green', '918669': 'Classic Birch', '939393': 'Gray', '950051': 'Plum', '951e23': 'Burgundy Red',
+  '959698': 'Silver', '96d8af': 'Light Jade', '96dcb9': 'Mint', '995f11': 'Clay Brown', '999d9d': 'Gray',
+  '9b9ea0': 'Ash Gray', '9d2235': 'Maroon Red', '9d432c': 'Brown', '9e007e': 'Purple', '9ea2a2': 'Gray',
+  '9f332a': 'Brick Red', 'a1ffac': 'Glow Green', 'a3d8e1': 'Ice Blue', 'a6a9aa': 'Silver', 'a8a8aa': 'Gray',
+  'a8c6ee': 'Baby Blue', 'aa6443': 'Copper Brown Metallic', 'ad4e38': 'Red Granite', 'adb1b2': 'Gray',
+  'ae835b': 'Caramel', 'ae96d4': 'Lilac Purple', 'af1685': 'Purple', 'afb1ae': 'Gray', 'b15533': 'Terracotta',
+  'b28b33': 'Gold', 'b39b84': 'Iridium Gold Metallic', 'b50011': 'Red', 'b8acd6': 'Lavender', 'b8cde9': 'Ice Blue',
+  'ba9594': 'Rose Gold', 'bb3d43': 'Dark Red', 'bc0900': 'Red', 'becf00': 'Bright Green', 'c0df16': 'Green',
+  'c12e1f': 'Red', 'c2e189': 'Apple Green', 'c3e2d6': 'Light Cyan', 'c5ed48': 'Lime', 'c6001a': 'Red',
+  'c6c6c6': 'Gray', 'c8102e': 'Red', 'c8c8c8': 'Silver', 'c98935': 'Ochre Yellow', 'c9a381': 'Translucent Brown',
+  'cbc6b8': 'Bone White', 'cdceca': 'Gray', 'cea629': 'Classic Gold Sparkle', 'd02727': 'Candy Red',
+  'd1d3d5': 'Light Gray', 'd32941': 'Red', 'd3b7a7': 'Latte Brown', 'd6001c': 'Red', 'd6abff': 'Translucent Purple',
+  'd6cca3': 'White Oak', 'dc3a27': 'Orange', 'dd3c22': 'Vermilion Red', 'de4343': 'Scarlet Red', 'dfd1a7': 'Beige',
+  'e02928': 'Red', 'e4bd68': 'Gold', 'e5b03d': 'Gold', 'e83100': 'Red', 'e8afcf': 'Sakura Pink', 'e8dbb7': 'Desert Tan',
+  'eaeae4': 'White', 'eaeceb': 'Silver', 'ec008c': 'Magenta', 'ed0000': 'Red', 'eeb1c1': 'Pink', 'efe255': 'Yellow',
+  'f0f1a8': 'Clear', 'f17b8f': 'Glow Pink', 'f3cfb2': 'Champagne', 'f3e600': 'Yellow', 'f48438': 'Orange',
+  'f4a925': 'Gold', 'f4d53f': 'Yellow', 'f4ee2a': 'Yellow', 'f5547c': 'Hot Pink', 'f55a74': 'Pink',
+  'f5b6cd': 'Cherry Pink', 'f5dbab': 'Mellow Yellow', 'f5f1dd': 'White', 'f68b1b': 'Neon Orange', 'f74e02': 'Orange',
+  'f75403': 'Orange', 'f7ada6': 'Pink', 'f7d959': 'Lemon Yellow', 'f7e6de': 'Beige', 'f7f3f0': 'White Marble',
+  'f8ff80': 'Glow Yellow', 'f99963': 'Mandarin Orange', 'f9c1bd': 'Translucent Pink', 'f9dfb9': 'Cream',
+  'f9ef41': 'Yellow', 'f9f7f2': 'Nature', 'f9f7f4': 'White', 'fce300': 'Yellow', 'fce900': 'Yellow',
+  'fec600': 'Sunflower Yellow', 'fedb00': 'Yellow', 'ff4800': 'Orange', 'ff671f': 'Orange', 'ff6a13': 'Orange',
+  'ff7f41': 'Orange', 'ff9016': 'Pumpkin Orange', 'ff911a': 'Translucent Orange', 'ff9d5b': 'Glow Orange',
+  'ffb549': 'Sunflower Yellow', 'ffc72c': 'Tangerine Yellow', 'ffce00': 'Yellow', 'ffd00b': 'Yellow',
+  'ffe133': 'Yellow', 'fffaf2': 'White', 'ffffff': 'White',
 };
 
-// Fallback color codes
-const COLOR_CODE_FALLBACK: Record<string, string> = {
-  'W0': 'White', 'W1': 'Jade White', 'K0': 'Black', 'R0': 'Red', 'B0': 'Blue',
-  'G0': 'Green', 'G1': 'Green', 'Y0': 'Yellow', 'Y2': 'Yellow', 'D0': 'Gray',
-  'D1': 'Silver', 'D3': 'Dark Gray', 'A0': 'Orange', 'P0': 'Purple', 'N0': 'Brown',
-};
-
-// Get color name from Bambu tray_id_name or hex
-function getColorName(trayIdName: string | null | undefined, hexColor: string): string {
-  // Try exact Bambu lookup first
-  if (trayIdName && BAMBU_COLORS[trayIdName]) {
-    return BAMBU_COLORS[trayIdName];
+// Get color name from hex color (lookup Bambu database, then fallback to HSL-based name)
+function getColorName(hexColor: string): string {
+  // Normalize hex: lowercase, strip # and alpha channel
+  const hex = hexColor.replace('#', '').toLowerCase().substring(0, 6);
+  // Try Bambu color lookup
+  if (BAMBU_HEX_COLORS[hex]) {
+    return BAMBU_HEX_COLORS[hex];
   }
-  // Try color code fallback (e.g., "A00-Y2" -> "Y2")
-  if (trayIdName) {
-    const parts = trayIdName.split('-');
-    if (parts.length >= 2 && COLOR_CODE_FALLBACK[parts[1]]) {
-      return COLOR_CODE_FALLBACK[parts[1]];
-    }
-  }
-  // Fall back to hex-based name
+  // Fall back to HSL-based name
   return hexToColorName(hexColor);
 }
 
@@ -185,7 +214,7 @@ export function AddToQueueModal({ archiveId, archiveName, onClose }: AddToQueueM
           filaments.push({
             type: tray.tray_type,
             color,
-            colorName: getColorName(tray.tray_id_name, color),
+            colorName: getColorName(color),
             amsId: amsUnit.id,
             trayId: tray.id,
             isHt,
@@ -202,7 +231,7 @@ export function AddToQueueModal({ archiveId, archiveName, onClose }: AddToQueueM
       filaments.push({
         type: printerStatus.vt_tray.tray_type,
         color,
-        colorName: getColorName(printerStatus.vt_tray.tray_id_name, color),
+        colorName: getColorName(color),
         amsId: -1,
         trayId: 0,
         isHt: false,
@@ -390,7 +419,7 @@ export function AddToQueueModal({ archiveId, archiveName, onClose }: AddToQueueM
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardContent className="p-0">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-bambu-dark-tertiary">
@@ -485,9 +514,9 @@ export function AddToQueueModal({ archiveId, archiveName, onClose }: AddToQueueM
                       <div
                         key={idx}
                         className="grid items-center gap-2 text-xs"
-                        style={{ gridTemplateColumns: '16px 1fr auto 1fr 16px' }}
+                        style={{ gridTemplateColumns: '16px minmax(70px, 1fr) auto 2fr 16px' }}
                       >
-                        <span title={`Required: ${item.color}`}>
+                        <span title={`Required: ${item.type} - ${getColorName(item.color)}`}>
                           <Circle className="w-3 h-3" fill={item.color} stroke={item.color} />
                         </span>
                         <span className="text-white truncate">

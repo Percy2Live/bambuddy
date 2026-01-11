@@ -12,7 +12,7 @@ All notable changes to Bambuddy will be documented in this file.
   - Blue ring indicator shows manually selected slots vs auto-matched
   - Status indicators: green (match), yellow (type only), orange (not found)
   - Re-read button to refresh AMS status if spools were swapped
-  - Color names shown in dropdowns (decoded from Bambu filament codes or derived from hex)
+  - Color names shown in dropdowns and tooltips (decoded from Bambu filament codes or derived from hex)
 
 ## [0.1.6b9] - 2026-01-09
 

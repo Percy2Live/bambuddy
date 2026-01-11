@@ -149,6 +149,27 @@ class TestPrintQueueAPI:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
+    async def test_add_to_queue_with_ams_mapping(
+        self, async_client: AsyncClient, printer_factory, archive_factory, db_session
+    ):
+        """Verify item can be added to queue with ams_mapping."""
+        printer = await printer_factory()
+        archive = await archive_factory()
+
+        data = {
+            "printer_id": printer.id,
+            "archive_id": archive.id,
+            "ams_mapping": [5, -1, 2, -1],  # Slot 1 -> tray 5, slot 3 -> tray 2
+        }
+        response = await async_client.post("/api/v1/queue/", json=data)
+        assert response.status_code == 200
+        result = response.json()
+        assert result["printer_id"] == printer.id
+        assert result["archive_id"] == archive.id
+        assert result["ams_mapping"] == [5, -1, 2, -1]
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
     async def test_get_queue_item(self, async_client: AsyncClient, queue_item_factory, db_session):
         """Verify single queue item can be retrieved."""
         item = await queue_item_factory()
