@@ -2214,7 +2214,7 @@ export function SettingsPage() {
               a.click();
               URL.revokeObjectURL(url);
               showToast(t('backup.downloaded', { defaultValue: 'Backup downloaded' }), 'success');
-            } catch (err) {
+            } catch {
               // Dismiss loading toast on error
               if (includesArchives) {
                 dismissToast(toastId);

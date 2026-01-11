@@ -452,7 +452,7 @@ export function StatsPage() {
       a.click();
       URL.revokeObjectURL(url);
       showToast('Export downloaded');
-    } catch (err) {
+    } catch {
       showToast('Export failed', 'error');
     } finally {
       setIsExporting(false);

@@ -162,7 +162,7 @@ async function parse3MF(arrayBuffer: ArrayBuffer): Promise<{ objects: Map<string
           }
         }
       }
-    } catch (e) {
+    } catch {
       // Silently ignore model_settings.config parsing errors
     }
   }
