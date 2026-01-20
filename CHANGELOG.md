@@ -14,6 +14,11 @@ All notable changes to Bambuddy will be documented in this file.
   - Sort by size (smallest or largest first)
   - Sort by date (oldest or newest first)
   - Directories always sorted first
+- **Camera View Mode Setting** - Choose how camera streams open:
+  - "New Window" (default): Opens camera in a separate browser window
+  - "Embedded": Shows camera as a floating overlay on the main screen
+  - Embedded viewer is draggable and resizable with persistent position/size
+  - Configure in Settings → General → Camera section
 
 ### Fixed
 - **User preset AMS configuration** - Fixed user presets (inheriting from Bambu presets) showing empty fields in Bambu Studio after configuration:

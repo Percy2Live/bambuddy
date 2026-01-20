@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Plug, AlertTriangle, RotateCcw, Bell, Download, RefreshCw, ExternalLink, Globe, Droplets, Thermometer, FileText, Edit2, Send, CheckCircle, XCircle, History, Trash2, Upload, Zap, TrendingUp, Calendar, DollarSign, Power, PowerOff, Key, Copy, Database, Info, X, Shield, Printer, Cylinder, Wifi, Home } from 'lucide-react';
+import { Loader2, Plus, Plug, AlertTriangle, RotateCcw, Bell, Download, RefreshCw, ExternalLink, Globe, Droplets, Thermometer, FileText, Edit2, Send, CheckCircle, XCircle, History, Trash2, Upload, Zap, TrendingUp, Calendar, DollarSign, Power, PowerOff, Key, Copy, Database, Info, X, Shield, Printer, Cylinder, Wifi, Home, Video } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
 import { formatDateOnly } from '../utils/date';
@@ -379,7 +379,8 @@ export function SettingsPage() {
       settings.ha_url !== localSettings.ha_url ||
       settings.ha_token !== localSettings.ha_token ||
       (settings.library_archive_mode ?? 'ask') !== (localSettings.library_archive_mode ?? 'ask') ||
-      Number(settings.library_disk_warning_gb ?? 5) !== Number(localSettings.library_disk_warning_gb ?? 5);
+      Number(settings.library_disk_warning_gb ?? 5) !== Number(localSettings.library_disk_warning_gb ?? 5) ||
+      (settings.camera_view_mode ?? 'window') !== (localSettings.camera_view_mode ?? 'window');
 
     if (!hasChanges) {
       return;
@@ -438,6 +439,7 @@ export function SettingsPage() {
         ha_token: localSettings.ha_token,
         library_archive_mode: localSettings.library_archive_mode,
         library_disk_warning_gb: localSettings.library_disk_warning_gb,
+        camera_view_mode: localSettings.camera_view_mode,
       };
       updateMutation.mutate(settingsToSave);
     }, 500);
@@ -874,8 +876,38 @@ export function SettingsPage() {
 
         </div>
 
-        {/* Second Column - Cost, AMS & Spoolman */}
+        {/* Second Column - Camera, Cost, AMS & Spoolman */}
         <div className="space-y-6 flex-1 lg:max-w-md">
+          {/* Camera Settings */}
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Video className="w-5 h-5 text-bambu-green" />
+                Camera
+              </h2>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm text-bambu-gray mb-1">
+                  Camera View Mode
+                </label>
+                <select
+                  value={localSettings.camera_view_mode ?? 'window'}
+                  onChange={(e) => updateSetting('camera_view_mode', e.target.value as 'window' | 'embedded')}
+                  className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+                >
+                  <option value="window">New Window</option>
+                  <option value="embedded">Embedded Overlay</option>
+                </select>
+                <p className="text-xs text-bambu-gray mt-1">
+                  {localSettings.camera_view_mode === 'embedded'
+                    ? 'Camera opens in a resizable overlay on the main screen'
+                    : 'Camera opens in a separate browser window'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <h2 className="text-lg font-semibold text-white">Cost Tracking</h2>

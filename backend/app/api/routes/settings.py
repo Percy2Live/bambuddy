@@ -137,6 +137,8 @@ async def update_settings(
         await set_setting(db, key, str_value)
 
     await db.commit()
+    # Expire all objects to ensure fresh reads after commit
+    db.expire_all()
 
     # Reconfigure MQTT relay if any MQTT settings changed
     if mqtt_updated:
@@ -214,6 +216,7 @@ async def update_spoolman_settings(
         await set_setting(db, "spoolman_sync_mode", settings["spoolman_sync_mode"])
 
     await db.commit()
+    db.expire_all()
 
     # Return updated settings
     return await get_spoolman_settings(db)
@@ -1990,6 +1993,7 @@ async def update_virtual_printer_settings(
     if model is not None:
         await set_setting(db, "virtual_printer_model", model)
     await db.commit()
+    db.expire_all()
 
     # Reconfigure virtual printer
     try:

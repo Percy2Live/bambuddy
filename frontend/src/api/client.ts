@@ -593,6 +593,8 @@ export interface AppSettings {
   // File Manager / Library settings
   library_archive_mode: 'always' | 'never' | 'ask';
   library_disk_warning_gb: number;
+  // Camera view settings
+  camera_view_mode: 'window' | 'embedded';
 }
 
 export type AppSettingsUpdate = Partial<AppSettings>;

@@ -100,6 +100,12 @@ class AppSettings(BaseModel):
         description="Show warning when free disk space falls below this threshold (GB)",
     )
 
+    # Camera view settings
+    camera_view_mode: str = Field(
+        default="window",
+        description="Camera view mode: 'window' opens in new browser window, 'embedded' shows overlay on main screen",
+    )
+
 
 class AppSettingsUpdate(BaseModel):
     """Schema for updating settings (all fields optional)."""
@@ -149,3 +155,4 @@ class AppSettingsUpdate(BaseModel):
     ha_token: str | None = None
     library_archive_mode: str | None = None
     library_disk_warning_gb: float | None = None
+    camera_view_mode: str | None = None

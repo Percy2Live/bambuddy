@@ -58,6 +58,7 @@ import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { FileManagerModal } from '../components/FileManagerModal';
+import { EmbeddedCameraViewer } from '../components/EmbeddedCameraViewer';
 import { MQTTDebugModal } from '../components/MQTTDebugModal';
 import { HMSErrorModal, filterKnownHMSErrors } from '../components/HMSErrorModal';
 import { PrinterQueueWidget } from '../components/PrinterQueueWidget';
@@ -909,6 +910,8 @@ function PrinterCard({
   spoolmanEnabled = false,
   hasUnlinkedSpools = false,
   timeFormat = 'system',
+  cameraViewMode = 'window',
+  onOpenEmbeddedCamera,
 }: {
   printer: Printer;
   hideIfDisconnected?: boolean;
@@ -924,6 +927,8 @@ function PrinterCard({
   spoolmanEnabled?: boolean;
   hasUnlinkedSpools?: boolean;
   timeFormat?: 'system' | '12h' | '24h';
+  cameraViewMode?: 'window' | 'embedded';
+  onOpenEmbeddedCamera?: (printerId: number, printerName: string) => void;
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -2534,20 +2539,24 @@ function PrinterCard({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  // Use saved window state or defaults
-                  const saved = localStorage.getItem('cameraWindowState');
-                  const state = saved ? JSON.parse(saved) : { width: 640, height: 400 };
-                  const features = [
-                    `width=${state.width}`,
-                    `height=${state.height}`,
-                    state.left !== undefined ? `left=${state.left}` : '',
-                    state.top !== undefined ? `top=${state.top}` : '',
-                    'menubar=no,toolbar=no,location=no,status=no,noopener',
-                  ].filter(Boolean).join(',');
-                  window.open(`/camera/${printer.id}`, `camera-${printer.id}`, features);
+                  if (cameraViewMode === 'embedded' && onOpenEmbeddedCamera) {
+                    onOpenEmbeddedCamera(printer.id, printer.name);
+                  } else {
+                    // Use saved window state or defaults
+                    const saved = localStorage.getItem('cameraWindowState');
+                    const state = saved ? JSON.parse(saved) : { width: 640, height: 400 };
+                    const features = [
+                      `width=${state.width}`,
+                      `height=${state.height}`,
+                      state.left !== undefined ? `left=${state.left}` : '',
+                      state.top !== undefined ? `top=${state.top}` : '',
+                      'menubar=no,toolbar=no,location=no,status=no,noopener',
+                    ].filter(Boolean).join(',');
+                    window.open(`/camera/${printer.id}`, `camera-${printer.id}`, features);
+                  }
                 }}
                 disabled={!status?.connected}
-                title="Open camera in new window"
+                title={cameraViewMode === 'embedded' ? 'Open camera overlay' : 'Open camera in new window'}
               >
                 <Video className="w-4 h-4" />
               </Button>
@@ -3793,6 +3802,8 @@ export function PrintersPage() {
   // Derive viewMode from cardSize: S=compact, M/L/XL=expanded
   const viewMode: ViewMode = cardSize === 1 ? 'compact' : 'expanded';
   const queryClient = useQueryClient();
+  // Embedded camera viewer state
+  const [embeddedCameraPrinter, setEmbeddedCameraPrinter] = useState<{ id: number; name: string } | null>(null);
 
   const { data: printers, isLoading } = useQuery({
     queryKey: ['printers'],
@@ -4133,6 +4144,8 @@ export function PrintersPage() {
                     spoolmanEnabled={spoolmanEnabled}
                     hasUnlinkedSpools={hasUnlinkedSpools}
                     timeFormat={settings?.time_format || 'system'}
+                    cameraViewMode={settings?.camera_view_mode || 'window'}
+                    onOpenEmbeddedCamera={(id, name) => setEmbeddedCameraPrinter({ id, name })}
                   />
                 ))}
               </div>
@@ -4159,6 +4172,8 @@ export function PrintersPage() {
                 tempFair: Number(settings.ams_temp_fair) || 35,
               } : undefined}
               timeFormat={settings?.time_format || 'system'}
+              cameraViewMode={settings?.camera_view_mode || 'window'}
+              onOpenEmbeddedCamera={(id, name) => setEmbeddedCameraPrinter({ id, name })}
             />
           ))}
         </div>
@@ -4169,6 +4184,15 @@ export function PrintersPage() {
           onClose={() => setShowAddModal(false)}
           onAdd={(data) => addMutation.mutate(data)}
           existingSerials={printers?.map(p => p.serial_number) || []}
+        />
+      )}
+
+      {/* Embedded Camera Viewer */}
+      {embeddedCameraPrinter && (
+        <EmbeddedCameraViewer
+          printerId={embeddedCameraPrinter.id}
+          printerName={embeddedCameraPrinter.name}
+          onClose={() => setEmbeddedCameraPrinter(null)}
         />
       )}
     </div>

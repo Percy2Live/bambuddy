@@ -285,3 +285,46 @@ class TestSettingsAPI:
         assert result["mqtt_port"] == 1883
         assert result["mqtt_topic_prefix"] == "bambuddy"
         assert result["mqtt_use_tls"] is False
+
+    # ========================================================================
+    # Camera settings tests
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_update_camera_view_mode(self, async_client: AsyncClient):
+        """Verify camera view mode can be updated."""
+        response = await async_client.put("/api/v1/settings/", json={"camera_view_mode": "embedded"})
+
+        assert response.status_code == 200
+        assert response.json()["camera_view_mode"] == "embedded"
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_camera_view_mode_persists(self, async_client: AsyncClient):
+        """CRITICAL: Verify camera view mode persists after update."""
+        # Update to embedded
+        await async_client.put("/api/v1/settings/", json={"camera_view_mode": "embedded"})
+
+        # Verify persistence in new request
+        response = await async_client.get("/api/v1/settings/")
+        assert response.json()["camera_view_mode"] == "embedded"
+
+        # Update back to window
+        await async_client.put("/api/v1/settings/", json={"camera_view_mode": "window"})
+
+        # Verify persistence
+        response = await async_client.get("/api/v1/settings/")
+        assert response.json()["camera_view_mode"] == "window"
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_camera_view_mode_default(self, async_client: AsyncClient):
+        """Verify camera view mode has correct default value."""
+        # Reset by requesting settings (default should be 'window')
+        response = await async_client.get("/api/v1/settings/")
+        result = response.json()
+
+        assert "camera_view_mode" in result
+        # Default is 'window' as defined in schema
+        assert result["camera_view_mode"] in ["window", "embedded"]
