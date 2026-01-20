@@ -6,10 +6,11 @@ import { api } from '../api/client';
 interface EmbeddedCameraViewerProps {
   printerId: number;
   printerName: string;
+  viewerIndex?: number;  // Used to offset multiple viewers
   onClose: () => void;
 }
 
-const STORAGE_KEY = 'embeddedCameraState';
+const STORAGE_KEY_PREFIX = 'embeddedCameraState_';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 2000;
 const MAX_RECONNECT_DELAY = 30000;
@@ -29,11 +30,14 @@ const DEFAULT_STATE: CameraState = {
   height: 300,
 };
 
-export function EmbeddedCameraViewer({ printerId, printerName, onClose }: EmbeddedCameraViewerProps) {
-  // Load saved state or use defaults
+export function EmbeddedCameraViewer({ printerId, printerName, viewerIndex = 0, onClose }: EmbeddedCameraViewerProps) {
+  // Printer-specific storage key
+  const storageKey = `${STORAGE_KEY_PREFIX}${printerId}`;
+
+  // Load saved state or use defaults (offset for new viewers without saved state)
   const loadState = (): CameraState => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const state = JSON.parse(saved);
         // Validate state is on screen
@@ -47,7 +51,13 @@ export function EmbeddedCameraViewer({ printerId, printerName, onClose }: Embedd
     } catch {
       // Ignore parse errors
     }
-    return DEFAULT_STATE;
+    // Offset new viewers so they don't stack exactly on top of each other
+    const offset = viewerIndex * 30;
+    return {
+      ...DEFAULT_STATE,
+      x: Math.max(0, DEFAULT_STATE.x - offset),
+      y: Math.max(0, DEFAULT_STATE.y + offset),
+    };
   };
 
   const [state, setState] = useState<CameraState>(loadState);
@@ -77,13 +87,13 @@ export function EmbeddedCameraViewer({ printerId, printerName, onClose }: Embedd
     enabled: printerId > 0,
   });
 
-  // Save state to localStorage
+  // Save state to localStorage (printer-specific)
   useEffect(() => {
     const saveTimeout = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(storageKey, JSON.stringify(state));
     }, 500);
     return () => clearTimeout(saveTimeout);
-  }, [state]);
+  }, [state, storageKey]);
 
   // Cleanup on unmount
   const stopSentRef = useRef(false);

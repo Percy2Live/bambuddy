@@ -3802,8 +3802,8 @@ export function PrintersPage() {
   // Derive viewMode from cardSize: S=compact, M/L/XL=expanded
   const viewMode: ViewMode = cardSize === 1 ? 'compact' : 'expanded';
   const queryClient = useQueryClient();
-  // Embedded camera viewer state
-  const [embeddedCameraPrinter, setEmbeddedCameraPrinter] = useState<{ id: number; name: string } | null>(null);
+  // Embedded camera viewer state - supports multiple simultaneous viewers
+  const [embeddedCameraPrinters, setEmbeddedCameraPrinters] = useState<Map<number, { id: number; name: string }>>(new Map());
 
   const { data: printers, isLoading } = useQuery({
     queryKey: ['printers'],
@@ -4145,7 +4145,7 @@ export function PrintersPage() {
                     hasUnlinkedSpools={hasUnlinkedSpools}
                     timeFormat={settings?.time_format || 'system'}
                     cameraViewMode={settings?.camera_view_mode || 'window'}
-                    onOpenEmbeddedCamera={(id, name) => setEmbeddedCameraPrinter({ id, name })}
+                    onOpenEmbeddedCamera={(id, name) => setEmbeddedCameraPrinters(prev => new Map(prev).set(id, { id, name }))}
                   />
                 ))}
               </div>
@@ -4173,7 +4173,7 @@ export function PrintersPage() {
               } : undefined}
               timeFormat={settings?.time_format || 'system'}
               cameraViewMode={settings?.camera_view_mode || 'window'}
-              onOpenEmbeddedCamera={(id, name) => setEmbeddedCameraPrinter({ id, name })}
+              onOpenEmbeddedCamera={(id, name) => setEmbeddedCameraPrinters(prev => new Map(prev).set(id, { id, name }))}
             />
           ))}
         </div>
@@ -4187,14 +4187,20 @@ export function PrintersPage() {
         />
       )}
 
-      {/* Embedded Camera Viewer */}
-      {embeddedCameraPrinter && (
+      {/* Embedded Camera Viewers - multiple viewers can be open simultaneously */}
+      {Array.from(embeddedCameraPrinters.values()).map((camera, index) => (
         <EmbeddedCameraViewer
-          printerId={embeddedCameraPrinter.id}
-          printerName={embeddedCameraPrinter.name}
-          onClose={() => setEmbeddedCameraPrinter(null)}
+          key={camera.id}
+          printerId={camera.id}
+          printerName={camera.name}
+          viewerIndex={index}
+          onClose={() => setEmbeddedCameraPrinters(prev => {
+            const next = new Map(prev);
+            next.delete(camera.id);
+            return next;
+          })}
         />
-      )}
+      ))}
     </div>
   );
 }
