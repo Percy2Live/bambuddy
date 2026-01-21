@@ -78,9 +78,13 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> U
 
 async def is_auth_enabled(db: AsyncSession) -> bool:
     """Check if authentication is enabled."""
-    result = await db.execute(select(Settings).where(Settings.key == "auth_enabled"))
-    setting = result.scalar_one_or_none()
-    return setting and setting.value.lower() == "true"
+    try:
+        result = await db.execute(select(Settings).where(Settings.key == "auth_enabled"))
+        setting = result.scalar_one_or_none()
+        return setting and setting.value.lower() == "true"
+    except Exception:
+        # If settings table doesn't exist or query fails, assume auth is disabled
+        return False
 
 
 async def get_current_user_optional(
