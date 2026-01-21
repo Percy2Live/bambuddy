@@ -1134,7 +1134,9 @@ export function FileManagerPage() {
     mutationFn: ({ id, name }: { id: number; name: string }) =>
       api.updateLibraryFolder(id, { name }),
     onSuccess: () => {
+      // Invalidate both folders and files - files may display folder info
       queryClient.invalidateQueries({ queryKey: ['library-folders'] });
+      queryClient.invalidateQueries({ queryKey: ['library-files'] });
       setRenameItem(null);
       showToast('Folder renamed', 'success');
     },

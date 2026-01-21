@@ -6,6 +6,7 @@ async function request<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
+    cache: 'no-store', // Prevent browser caching of API responses
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,

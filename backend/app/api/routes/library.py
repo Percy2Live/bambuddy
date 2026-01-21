@@ -9,7 +9,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -198,8 +198,11 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", "
 
 @router.get("/folders", response_model=list[FolderTreeItem])
 @router.get("/folders/", response_model=list[FolderTreeItem])
-async def list_folders(db: AsyncSession = Depends(get_db)):
+async def list_folders(response: Response, db: AsyncSession = Depends(get_db)):
     """Get all folders as a tree structure."""
+    # Prevent browser caching of folder list
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
     # Get all folders with project and archive joins
     result = await db.execute(
         select(LibraryFolder, Project.name, PrintArchive.print_name)
@@ -541,6 +544,7 @@ async def delete_folder(folder_id: int, db: AsyncSession = Depends(get_db)):
 @router.get("/files", response_model=list[FileListResponse])
 @router.get("/files/", response_model=list[FileListResponse])
 async def list_files(
+    response: Response,
     folder_id: int | None = None,
     include_root: bool = True,
     db: AsyncSession = Depends(get_db),
@@ -575,7 +579,10 @@ async def list_files(
             )
             hash_counts = {h: c - 1 for h, c in dup_result.all()}  # -1 to exclude self
 
-    response = []
+    # Prevent browser caching of file list
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
+    file_list = []
     for f in files:
         # Extract key metadata for display
         print_name = None
@@ -586,7 +593,7 @@ async def list_files(
             print_time = f.file_metadata.get("print_time_seconds")
             filament_grams = f.file_metadata.get("filament_used_grams")
 
-        response.append(
+        file_list.append(
             FileListResponse(
                 id=f.id,
                 folder_id=f.folder_id,
@@ -603,7 +610,7 @@ async def list_files(
             )
         )
 
-    return response
+    return file_list
 
 
 @router.post("/files", response_model=FileUploadResponse)
