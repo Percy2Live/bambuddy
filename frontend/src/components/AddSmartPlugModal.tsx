@@ -24,6 +24,10 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
   const [password, setPassword] = useState(plug?.password || '');
   // Home Assistant fields
   const [haEntityId, setHaEntityId] = useState(plug?.ha_entity_id || '');
+  // HA energy sensor entities (optional)
+  const [haPowerEntity, setHaPowerEntity] = useState(plug?.ha_power_entity || '');
+  const [haEnergyTodayEntity, setHaEnergyTodayEntity] = useState(plug?.ha_energy_today_entity || '');
+  const [haEnergyTotalEntity, setHaEnergyTotalEntity] = useState(plug?.ha_energy_total_entity || '');
 
   const [printerId, setPrinterId] = useState<number | null>(plug?.printer_id || null);
   const [testResult, setTestResult] = useState<{ success: boolean; state?: string | null; device_name?: string | null } | null>(null);
@@ -73,6 +77,15 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
   const { data: haEntities, isLoading: haEntitiesLoading } = useQuery({
     queryKey: ['ha-entities'],
     queryFn: api.getHAEntities,
+    enabled: plugType === 'homeassistant' && haConfigured,
+    retry: false,
+    staleTime: 0,
+  });
+
+  // Fetch Home Assistant sensor entities for energy monitoring
+  const { data: haSensorEntities } = useQuery({
+    queryKey: ['ha-sensor-entities'],
+    queryFn: api.getHASensorEntities,
     enabled: plugType === 'homeassistant' && haConfigured,
     retry: false,
     staleTime: 0,
@@ -225,6 +238,10 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
       plug_type: plugType,
       ip_address: plugType === 'tasmota' ? ipAddress.trim() : null,
       ha_entity_id: plugType === 'homeassistant' ? haEntityId : null,
+      // HA energy sensor entities (optional)
+      ha_power_entity: plugType === 'homeassistant' ? (haPowerEntity || null) : null,
+      ha_energy_today_entity: plugType === 'homeassistant' ? (haEnergyTodayEntity || null) : null,
+      ha_energy_total_entity: plugType === 'homeassistant' ? (haEnergyTotalEntity || null) : null,
       username: plugType === 'tasmota' ? (username.trim() || null) : null,
       password: plugType === 'tasmota' ? (password.trim() || null) : null,
       printer_id: printerId,
@@ -474,6 +491,75 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
                         <p className="text-xs opacity-80">
                           {haEntities.find(e => e.entity_id === haEntityId)?.friendly_name} - {haEntities.find(e => e.entity_id === haEntityId)?.state}
                         </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Energy Monitoring Section (Optional) */}
+                  {haEntityId && haSensorEntities && haSensorEntities.length > 0 && (
+                    <div className="border-t border-bambu-dark-tertiary pt-4 mt-4 space-y-3">
+                      <div>
+                        <p className="text-white font-medium mb-1">Energy Monitoring (Optional)</p>
+                        <p className="text-xs text-bambu-gray mb-3">
+                          Select sensors that provide power/energy data. These can be from any device in Home Assistant.
+                        </p>
+                      </div>
+
+                      {/* Power Sensor (W) */}
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">Power Sensor (W)</label>
+                        <select
+                          value={haPowerEntity}
+                          onChange={(e) => setHaPowerEntity(e.target.value)}
+                          className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+                        >
+                          <option value="">None</option>
+                          {haSensorEntities
+                            .filter(s => s.unit_of_measurement === 'W' || s.unit_of_measurement === 'kW' || s.unit_of_measurement === 'mW')
+                            .map((sensor) => (
+                              <option key={sensor.entity_id} value={sensor.entity_id}>
+                                {sensor.friendly_name} ({sensor.state} {sensor.unit_of_measurement})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Energy Today (kWh) */}
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">Energy Today (kWh)</label>
+                        <select
+                          value={haEnergyTodayEntity}
+                          onChange={(e) => setHaEnergyTodayEntity(e.target.value)}
+                          className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+                        >
+                          <option value="">None</option>
+                          {haSensorEntities
+                            .filter(s => s.unit_of_measurement === 'kWh' || s.unit_of_measurement === 'Wh' || s.unit_of_measurement === 'MWh')
+                            .map((sensor) => (
+                              <option key={sensor.entity_id} value={sensor.entity_id}>
+                                {sensor.friendly_name} ({sensor.state} {sensor.unit_of_measurement})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Total Energy (kWh) */}
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">Total Energy (kWh)</label>
+                        <select
+                          value={haEnergyTotalEntity}
+                          onChange={(e) => setHaEnergyTotalEntity(e.target.value)}
+                          className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+                        >
+                          <option value="">None</option>
+                          {haSensorEntities
+                            .filter(s => s.unit_of_measurement === 'kWh' || s.unit_of_measurement === 'Wh' || s.unit_of_measurement === 'MWh')
+                            .map((sensor) => (
+                              <option key={sensor.entity_id} value={sensor.entity_id}>
+                                {sensor.friendly_name} ({sensor.state} {sensor.unit_of_measurement})
+                              </option>
+                            ))}
+                        </select>
                       </div>
                     </div>
                   )}

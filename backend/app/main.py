@@ -88,6 +88,7 @@ from backend.app.models.smart_plug import SmartPlug
 from backend.app.services.archive import ArchiveService
 from backend.app.services.bambu_ftp import download_file_async, get_ftp_retry_settings, with_ftp_retry
 from backend.app.services.bambu_mqtt import PrinterState
+from backend.app.services.homeassistant import homeassistant_service
 from backend.app.services.mqtt_relay import mqtt_relay
 from backend.app.services.notification_service import notification_service
 from backend.app.services.print_scheduler import scheduler as print_scheduler
@@ -110,6 +111,22 @@ _expected_prints: dict[tuple[int, str], int] = {}
 
 # Track starting energy for prints: {archive_id: starting_kwh}
 _print_energy_start: dict[int, float] = {}
+
+
+async def _get_plug_energy(plug, db) -> dict | None:
+    """Get energy from plug regardless of type (Tasmota or Home Assistant).
+
+    For HA plugs, configures the service with current settings from DB.
+    """
+    if plug.plug_type == "homeassistant":
+        from backend.app.api.routes.settings import get_setting
+
+        ha_url = await get_setting(db, "ha_url") or ""
+        ha_token = await get_setting(db, "ha_token") or ""
+        homeassistant_service.configure(ha_url, ha_token)
+        return await homeassistant_service.get_energy(plug)
+    else:
+        return await tasmota_service.get_energy(plug)
 
 
 def register_expected_print(printer_id: int, filename: str, archive_id: int):
@@ -517,7 +534,7 @@ async def on_print_start(printer_id: int, data: dict):
                         f"[ENERGY] Print start - archive {archive.id}, printer {printer_id}, plug found: {plug is not None}"
                     )
                     if plug:
-                        energy = await tasmota_service.get_energy(plug)
+                        energy = await _get_plug_energy(plug, db)
                         logger.info(f"[ENERGY] Energy response from plug: {energy}")
                         if energy and energy.get("total") is not None:
                             _print_energy_start[archive.id] = energy["total"]
@@ -588,7 +605,7 @@ async def on_print_start(printer_id: int, data: dict):
                         plug_result = await db.execute(select(SmartPlug).where(SmartPlug.printer_id == printer_id))
                         plug = plug_result.scalar_one_or_none()
                         if plug:
-                            energy = await tasmota_service.get_energy(plug)
+                            energy = await _get_plug_energy(plug, db)
                             if energy and energy.get("total") is not None:
                                 _print_energy_start[existing_archive.id] = energy["total"]
                                 logger.info(
@@ -779,7 +796,7 @@ async def on_print_start(printer_id: int, data: dict):
                     plug_result = await db.execute(select(SmartPlug).where(SmartPlug.printer_id == printer_id))
                     plug = plug_result.scalar_one_or_none()
                     if plug:
-                        energy = await tasmota_service.get_energy(plug)
+                        energy = await _get_plug_energy(plug, db)
                         if energy and energy.get("total") is not None:
                             _print_energy_start[fallback_archive.id] = energy["total"]
                             logger.info(
@@ -848,7 +865,7 @@ async def on_print_start(printer_id: int, data: dict):
                         f"[ENERGY] Auto-archive print start - archive {archive.id}, printer {printer_id}, plug found: {plug is not None}"
                     )
                     if plug:
-                        energy = await tasmota_service.get_energy(plug)
+                        energy = await _get_plug_energy(plug, db)
                         logger.info(f"[ENERGY] Auto-archive energy response: {energy}")
                         if energy and energy.get("total") is not None:
                             _print_energy_start[archive.id] = energy["total"]
@@ -1262,7 +1279,7 @@ async def on_print_complete(printer_id: int, data: dict):
                 plug = plug_result.scalar_one_or_none()
 
                 if plug:
-                    energy = await tasmota_service.get_energy(plug)
+                    energy = await _get_plug_energy(plug, db)
                     logger.info(f"[ENERGY-BG] Energy response: {energy}")
 
                     energy_used = None

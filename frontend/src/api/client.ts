@@ -738,6 +738,10 @@ export interface SmartPlug {
   plug_type: 'tasmota' | 'homeassistant';
   ip_address: string | null;  // Required for Tasmota
   ha_entity_id: string | null;  // Required for Home Assistant (e.g., "switch.printer_plug")
+  // Home Assistant energy sensor entities (optional)
+  ha_power_entity: string | null;
+  ha_energy_today_entity: string | null;
+  ha_energy_total_entity: string | null;
   printer_id: number | null;
   enabled: boolean;
   auto_on: boolean;
@@ -771,6 +775,10 @@ export interface SmartPlugCreate {
   plug_type?: 'tasmota' | 'homeassistant';
   ip_address?: string | null;  // Required for Tasmota
   ha_entity_id?: string | null;  // Required for Home Assistant
+  // Home Assistant energy sensor entities (optional)
+  ha_power_entity?: string | null;
+  ha_energy_today_entity?: string | null;
+  ha_energy_total_entity?: string | null;
   printer_id?: number | null;
   enabled?: boolean;
   auto_on?: boolean;
@@ -797,6 +805,10 @@ export interface SmartPlugUpdate {
   plug_type?: 'tasmota' | 'homeassistant';
   ip_address?: string | null;
   ha_entity_id?: string | null;
+  // Home Assistant energy sensor entities (optional)
+  ha_power_entity?: string | null;
+  ha_energy_today_entity?: string | null;
+  ha_energy_total_entity?: string | null;
   printer_id?: number | null;
   enabled?: boolean;
   auto_on?: boolean;
@@ -824,6 +836,14 @@ export interface HAEntity {
   friendly_name: string;
   state: string | null;
   domain: string;  // "switch", "light", "input_boolean"
+}
+
+// Home Assistant sensor entity for energy monitoring
+export interface HASensorEntity {
+  entity_id: string;
+  friendly_name: string;
+  state: string | null;
+  unit_of_measurement: string | null;  // "W", "kW", "kWh", "Wh"
 }
 
 export interface HATestConnectionResult {
@@ -2191,6 +2211,8 @@ export const api = {
     }),
   getHAEntities: () =>
     request<HAEntity[]>('/smart-plugs/ha/entities'),
+  getHASensorEntities: () =>
+    request<HASensorEntity[]>('/smart-plugs/ha/sensors'),
 
   // Print Queue
   getQueue: (printerId?: number, status?: string) => {

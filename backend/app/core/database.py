@@ -642,6 +642,20 @@ async def run_migrations(conn):
     except Exception:
         pass
 
+    # Migration: Add HA energy sensor entity columns to smart_plugs
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN ha_power_entity VARCHAR(100)"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN ha_energy_today_entity VARCHAR(100)"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN ha_energy_total_entity VARCHAR(100)"))
+    except Exception:
+        pass
+
     # Migration: Create users table for authentication
     try:
         await conn.execute(

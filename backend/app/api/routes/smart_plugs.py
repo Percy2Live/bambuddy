@@ -14,6 +14,7 @@ from backend.app.models.printer import Printer
 from backend.app.models.smart_plug import SmartPlug
 from backend.app.schemas.smart_plug import (
     HAEntity,
+    HASensorEntity,
     HATestConnectionRequest,
     HATestConnectionResponse,
     SmartPlugControl,
@@ -225,6 +226,25 @@ async def list_ha_entities(db: AsyncSession = Depends(get_db)):
 
     entities = await homeassistant_service.list_entities(ha_url, ha_token)
     return [HAEntity(**e) for e in entities]
+
+
+@router.get("/ha/sensors", response_model=list[HASensorEntity])
+async def list_ha_sensor_entities(db: AsyncSession = Depends(get_db)):
+    """List available Home Assistant sensor entities for energy monitoring.
+
+    Returns sensors with power/energy units (W, kW, kWh, Wh).
+    Requires HA connection settings to be configured in Settings.
+    """
+    ha_url = await get_setting(db, "ha_url") or ""
+    ha_token = await get_setting(db, "ha_token") or ""
+
+    if not ha_url or not ha_token:
+        raise HTTPException(
+            400, "Home Assistant not configured. Please set HA URL and token in Settings → Network → Home Assistant."
+        )
+
+    sensors = await homeassistant_service.list_sensor_entities(ha_url, ha_token)
+    return [HASensorEntity(**s) for s in sensors]
 
 
 @router.get("/{plug_id}", response_model=SmartPlugResponse)

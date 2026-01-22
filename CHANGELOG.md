@@ -2,6 +2,17 @@
 
 All notable changes to Bambuddy will be documented in this file.
 
+## [0.1.6b11] - 2026-01-22
+
+### New Features
+- **Home Assistant Energy Sensor Support** - HA smart plugs can now use separate sensor entities for energy monitoring:
+  - Configure dedicated power sensor (W), today's energy (kWh), and total energy (kWh) sensors
+  - Supports plugs where energy data is exposed as separate sensor entities (common with Tapo, IKEA Zigbee2mqtt, etc.)
+  - Energy sensors are selectable from all available HA sensors with power/energy units
+  - Falls back to switch entity attributes if no sensors configured
+  - Print energy tracking now works correctly for HA plugs (not just Tasmota)
+  - New API endpoint: `GET /api/v1/smart-plugs/ha/sensors` to list available energy sensors
+
 ## [0.1.6b10] - 2026-01-21
 
 ### New Features

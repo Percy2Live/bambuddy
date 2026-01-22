@@ -342,6 +342,9 @@ async def export_backup(
                     "plug_type": plug.plug_type,
                     "ip_address": plug.ip_address,
                     "ha_entity_id": plug.ha_entity_id,
+                    "ha_power_entity": plug.ha_power_entity,
+                    "ha_energy_today_entity": plug.ha_energy_today_entity,
+                    "ha_energy_total_entity": plug.ha_energy_total_entity,
                     "printer_serial": printer_id_to_serial.get(plug.printer_id) if plug.printer_id else None,
                     "enabled": plug.enabled,
                     "auto_on": plug.auto_on,
@@ -1122,6 +1125,9 @@ async def import_backup(
                     existing.name = plug_data["name"]
                     existing.plug_type = plug_type
                     existing.ha_entity_id = plug_data.get("ha_entity_id")
+                    existing.ha_power_entity = plug_data.get("ha_power_entity")
+                    existing.ha_energy_today_entity = plug_data.get("ha_energy_today_entity")
+                    existing.ha_energy_total_entity = plug_data.get("ha_energy_total_entity")
                     existing.printer_id = printer_id
                     existing.enabled = plug_data.get("enabled", True)
                     existing.auto_on = plug_data.get("auto_on", True)
@@ -1148,6 +1154,9 @@ async def import_backup(
                     plug_type=plug_type,
                     ip_address=plug_data.get("ip_address"),
                     ha_entity_id=plug_data.get("ha_entity_id"),
+                    ha_power_entity=plug_data.get("ha_power_entity"),
+                    ha_energy_today_entity=plug_data.get("ha_energy_today_entity"),
+                    ha_energy_total_entity=plug_data.get("ha_energy_total_entity"),
                     printer_id=printer_id,
                     enabled=plug_data.get("enabled", True),
                     auto_on=plug_data.get("auto_on", True),
