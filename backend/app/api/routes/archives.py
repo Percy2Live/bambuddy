@@ -627,6 +627,7 @@ async def toggle_favorite(
 @router.post("/{archive_id}/rescan", response_model=ArchiveResponse)
 async def rescan_archive(archive_id: int, db: AsyncSession = Depends(get_db)):
     """Rescan the 3MF file and update metadata."""
+    from backend.app.api.routes.settings import get_setting
     from backend.app.services.archive import ThreeMFParser
 
     result = await db.execute(select(PrintArchive).where(PrintArchive.id == archive_id))
@@ -672,7 +673,10 @@ async def rescan_archive(archive_id: int, db: AsyncSession = Depends(get_db)):
         if filament:
             archive.cost = round((archive.filament_used_grams / 1000) * filament.cost_per_kg, 2)
         else:
-            archive.cost = round((archive.filament_used_grams / 1000) * 25.0, 2)
+            # Use default filament cost from settings
+            default_cost_setting = await get_setting(db, "default_filament_cost")
+            default_cost_per_kg = float(default_cost_setting) if default_cost_setting else 25.0
+            archive.cost = round((archive.filament_used_grams / 1000) * default_cost_per_kg, 2)
 
     await db.commit()
     await db.refresh(archive)
@@ -682,13 +686,18 @@ async def rescan_archive(archive_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/recalculate-costs")
 async def recalculate_all_costs(db: AsyncSession = Depends(get_db)):
     """Recalculate costs for all archives based on filament usage and prices."""
+    from backend.app.api.routes.settings import get_setting
+
     result = await db.execute(select(PrintArchive))
     archives = list(result.scalars().all())
 
     # Load all filaments for lookup
     filament_result = await db.execute(select(Filament))
     filaments = {f.type: f.cost_per_kg for f in filament_result.scalars().all()}
-    default_cost_per_kg = 25.0
+
+    # Get default filament cost from settings
+    default_cost_setting = await get_setting(db, "default_filament_cost")
+    default_cost_per_kg = float(default_cost_setting) if default_cost_setting else 25.0
 
     updated = 0
     for archive in archives:

@@ -13,6 +13,9 @@ All notable changes to Bambuddy will be documented in this file.
   - Print energy tracking now works correctly for HA plugs (not just Tasmota)
   - New API endpoint: `GET /api/v1/smart-plugs/ha/sensors` to list available energy sensors
 
+### Fixed
+- **Filament cost using wrong default** - Statistics now correctly uses the "Default filament cost (per kg)" setting instead of hardcoded €25 value (Issue #120)
+
 ## [0.1.6b10] - 2026-01-21
 
 ### New Features
