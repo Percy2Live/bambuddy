@@ -543,7 +543,7 @@ function ArchiveCard({
           />
         </button>
         {(archive.status === 'failed' || archive.status === 'aborted') && (
-          <div className="absolute top-2 left-12 px-2 py-1 rounded text-xs bg-red-500/80 text-white">
+          <div className="absolute top-2 left-12 px-2 py-1 rounded text-xs bg-status-error/80 text-white">
             {archive.status === 'aborted' ? 'cancelled' : 'failed'}
           </div>
         )}

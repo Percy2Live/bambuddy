@@ -91,13 +91,13 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
             {/* Quick enable/disable toggle + Status indicator */}
             <div className="flex items-center gap-3">
               {provider.last_success && (
-                <span className="text-xs text-bambu-green hidden sm:inline">Last: {formatDateOnly(provider.last_success)}</span>
+                <span className="text-xs text-status-ok hidden sm:inline">Last: {formatDateOnly(provider.last_success)}</span>
               )}
               {/* Only show error if it's more recent than last success */}
               {provider.last_error && provider.last_error_at && (
                 !provider.last_success || (parseUTCDate(provider.last_error_at)?.getTime() || 0) > (parseUTCDate(provider.last_success)?.getTime() || 0)
               ) && (
-                <span className="text-xs text-red-400" title={provider.last_error}>Error</span>
+                <span className="text-xs text-status-error" title={provider.last_error}>Error</span>
               )}
               <Toggle
                 checked={provider.enabled}

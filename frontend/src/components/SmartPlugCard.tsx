@@ -136,11 +136,11 @@ export function SmartPlugCard({ plug, onEdit }: SmartPlugCardProps) {
                 <Loader2 className="w-4 h-4 text-bambu-gray animate-spin" />
               ) : isReachable ? (
                 <div className="flex items-center gap-1 text-sm">
-                  <Wifi className="w-4 h-4 text-bambu-green" />
-                  <span className={isOn ? 'text-bambu-green' : 'text-bambu-gray'}>{status?.state || 'Unknown'}</span>
+                  <Wifi className="w-4 h-4 text-status-ok" />
+                  <span className={isOn ? 'text-status-ok' : 'text-bambu-gray'}>{status?.state || 'Unknown'}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1 text-sm text-red-400">
+                <div className="flex items-center gap-1 text-sm text-status-error">
                   <WifiOff className="w-4 h-4" />
                   <span>Offline</span>
                 </div>

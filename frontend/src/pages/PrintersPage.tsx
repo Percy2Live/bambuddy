@@ -1354,7 +1354,7 @@ function PrinterCard({
                   {viewMode === 'compact' && (
                     <div
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        status?.connected ? 'bg-bambu-green' : 'bg-red-500'
+                        status?.connected ? 'bg-status-ok' : 'bg-status-error'
                       }`}
                       title={status?.connected ? 'Connected' : 'Offline'}
                     />
@@ -1440,8 +1440,8 @@ function PrinterCard({
               <span
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
                   status?.connected
-                    ? 'bg-bambu-green/20 text-bambu-green'
-                    : 'bg-red-500/20 text-red-400'
+                    ? 'bg-status-ok/20 text-status-ok'
+                    : 'bg-status-error/20 text-status-error'
                 }`}
               >
                 {status?.connected ? (
@@ -1456,14 +1456,14 @@ function PrinterCard({
                 <span
                   className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
                     wifiSignal >= -50
-                      ? 'bg-bambu-green/20 text-bambu-green'
+                      ? 'bg-status-ok/20 text-status-ok'
                       : wifiSignal >= -60
-                      ? 'bg-bambu-green/20 text-bambu-green'
+                      ? 'bg-status-ok/20 text-status-ok'
                       : wifiSignal >= -70
-                      ? 'bg-amber-500/20 text-amber-600'
+                      ? 'bg-status-warning/20 text-status-warning'
                       : wifiSignal >= -80
                       ? 'bg-orange-500/20 text-orange-600'
-                      : 'bg-red-500/20 text-red-600'
+                      : 'bg-status-error/20 text-status-error'
                   }`}
                   title={`WiFi: ${wifiSignal} dBm - ${getWifiStrength(wifiSignal).label}`}
                 >
@@ -1480,9 +1480,9 @@ function PrinterCard({
                     className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                       knownErrors.length > 0
                         ? knownErrors.some(e => e.severity <= 2)
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-orange-500/20 text-orange-400'
-                        : 'bg-bambu-green/20 text-bambu-green'
+                          ? 'bg-status-error/20 text-status-error'
+                          : 'bg-status-warning/20 text-status-warning'
+                        : 'bg-status-ok/20 text-status-ok'
                     }`}
                     title="Click to view HMS errors"
                   >
@@ -1497,10 +1497,10 @@ function PrinterCard({
                   onClick={() => navigate('/maintenance')}
                   className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                     maintenanceInfo.due_count > 0
-                      ? 'bg-red-500/20 text-red-400'
+                      ? 'bg-status-error/20 text-status-error'
                       : maintenanceInfo.warning_count > 0
-                      ? 'bg-orange-500/20 text-orange-400'
-                      : 'bg-bambu-green/20 text-bambu-green'
+                      ? 'bg-status-warning/20 text-status-warning'
+                      : 'bg-status-ok/20 text-status-ok'
                   }`}
                   title={
                     maintenanceInfo.due_count > 0 || maintenanceInfo.warning_count > 0
@@ -3487,8 +3487,8 @@ function FirmwareUpdateModal({
               <div className="w-full bg-bambu-dark-tertiary rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
-                    uploadStatus.status === 'error' ? 'bg-red-500' :
-                    uploadStatus.status === 'complete' ? 'bg-bambu-green' : 'bg-orange-500'
+                    uploadStatus.status === 'error' ? 'bg-status-error' :
+                    uploadStatus.status === 'complete' ? 'bg-status-ok' : 'bg-orange-500'
                   } ${uploadStatus.status === 'uploading' ? 'animate-pulse' : ''}`}
                   style={{ width: `${uploadStatus.progress}%` }}
                 />

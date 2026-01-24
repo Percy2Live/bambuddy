@@ -53,8 +53,8 @@ function SwitchItem({ plug }: { plug: SmartPlug }) {
                 <Loader2 className="w-3 h-3 text-bambu-gray animate-spin" />
               ) : isReachable ? (
                 <>
-                  <Wifi className="w-3 h-3 text-bambu-green" />
-                  <span className={isOn ? 'text-bambu-green' : 'text-bambu-gray'}>{status?.state || 'Unknown'}</span>
+                  <Wifi className="w-3 h-3 text-status-ok" />
+                  <span className={isOn ? 'text-status-ok' : 'text-bambu-gray'}>{status?.state || 'Unknown'}</span>
                   {status?.energy?.power !== null && status?.energy?.power !== undefined && (
                     <>
                       <span className="text-bambu-gray mx-1">|</span>
@@ -65,8 +65,8 @@ function SwitchItem({ plug }: { plug: SmartPlug }) {
                 </>
               ) : (
                 <>
-                  <WifiOff className="w-3 h-3 text-red-400" />
-                  <span className="text-red-400">Offline</span>
+                  <WifiOff className="w-3 h-3 text-status-error" />
+                  <span className="text-status-error">Offline</span>
                 </>
               )}
             </div>

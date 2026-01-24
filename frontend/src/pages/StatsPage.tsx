@@ -155,12 +155,12 @@ function SuccessRateWidget({
       <div className="flex-1 min-w-0">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-bambu-green flex-shrink-0" />
+            <CheckCircle className="w-4 h-4 text-status-ok flex-shrink-0" />
             <span className="text-sm text-bambu-gray">Successful:</span>
             <span className="text-sm text-white font-medium">{stats?.successful_prints || 0}</span>
           </div>
           <div className="flex items-center gap-2">
-            <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <XCircle className="w-4 h-4 text-status-error flex-shrink-0" />
             <span className="text-sm text-bambu-gray">Failed:</span>
             <span className="text-sm text-white font-medium">{stats?.failed_prints || 0}</span>
           </div>
@@ -276,8 +276,8 @@ function TimeAccuracyWidget({
                   {printerMap.get(printerId) || `Printer ${printerId}`}
                 </span>
                 <span className={`font-medium ${
-                  acc >= 95 && acc <= 105 ? 'text-bambu-green' :
-                  acc > 105 ? 'text-blue-400' : 'text-orange-400'
+                  acc >= 95 && acc <= 105 ? 'text-status-ok' :
+                  acc > 105 ? 'text-blue-400' : 'text-status-warning'
                 }`}>
                   {acc.toFixed(0)}%
                 </span>
@@ -452,7 +452,7 @@ function FailureAnalysisWidget({ size = 1 }: { size?: 1 | 2 | 4 }) {
       <div className={size >= 2 ? 'flex-shrink-0' : ''}>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <AlertTriangle className={`w-5 h-5 ${analysis.failure_rate > 20 ? 'text-red-400' : analysis.failure_rate > 10 ? 'text-yellow-400' : 'text-bambu-green'}`} />
+            <AlertTriangle className={`w-5 h-5 ${analysis.failure_rate > 20 ? 'text-status-error' : analysis.failure_rate > 10 ? 'text-status-warning' : 'text-status-ok'}`} />
             <span className={`font-bold text-white ${size >= 2 ? 'text-3xl' : 'text-2xl'}`}>{analysis.failure_rate.toFixed(1)}%</span>
           </div>
         </div>
@@ -465,8 +465,8 @@ function FailureAnalysisWidget({ size = 1 }: { size?: 1 | 2 | 4 }) {
             <div className="flex items-center gap-2 text-sm">
               <TrendingDown className={`w-4 h-4 ${
                 analysis.trend[analysis.trend.length - 1].failure_rate < analysis.trend[analysis.trend.length - 2].failure_rate
-                  ? 'text-bambu-green'
-                  : 'text-red-400'
+                  ? 'text-status-ok'
+                  : 'text-status-error'
               }`} />
               <span className="text-bambu-gray">
                 Last week: {analysis.trend[analysis.trend.length - 1].failure_rate.toFixed(1)}%

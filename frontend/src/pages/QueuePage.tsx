@@ -76,10 +76,10 @@ function formatRelativeTime(dateString: string | null, timeFormat: TimeFormat = 
 
 function StatusBadge({ status }: { status: PrintQueueItem['status'] }) {
   const config = {
-    pending: { icon: Clock, color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', label: 'Pending' },
+    pending: { icon: Clock, color: 'text-status-warning bg-status-warning/10 border-status-warning/20', label: 'Pending' },
     printing: { icon: Play, color: 'text-blue-400 bg-blue-400/10 border-blue-400/20', label: 'Printing' },
-    completed: { icon: CheckCircle, color: 'text-green-400 bg-green-400/10 border-green-400/20', label: 'Completed' },
-    failed: { icon: XCircle, color: 'text-red-400 bg-red-400/10 border-red-400/20', label: 'Failed' },
+    completed: { icon: CheckCircle, color: 'text-status-ok bg-status-ok/10 border-status-ok/20', label: 'Completed' },
+    failed: { icon: XCircle, color: 'text-status-error bg-status-error/10 border-status-error/20', label: 'Failed' },
     skipped: { icon: SkipForward, color: 'text-orange-400 bg-orange-400/10 border-orange-400/20', label: 'Skipped' },
     cancelled: { icon: X, color: 'text-gray-400 bg-gray-400/10 border-gray-400/20', label: 'Cancelled' },
   };

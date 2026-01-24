@@ -520,7 +520,7 @@ export function ProjectDetailPage() {
                   <p className="text-sm text-bambu-gray">Print Jobs</p>
                   <p className="text-xl font-semibold text-white">{stats.total_archives} <span className="text-sm font-normal text-bambu-gray">total</span></p>
                   {stats.failed_prints > 0 && (
-                    <p className="text-sm text-red-400">{stats.failed_prints} failed</p>
+                    <p className="text-sm text-status-error">{stats.failed_prints} failed</p>
                   )}
                   <p className="text-sm text-bambu-gray">{stats.completed_prints} parts printed</p>
                 </div>
@@ -610,7 +610,7 @@ export function ProjectDetailPage() {
                     />
                     <span className="text-white">{child.name}</span>
                     <span className={`text-xs px-2 py-0.5 rounded ${
-                      child.status === 'completed' ? 'bg-bambu-green/20 text-bambu-green' :
+                      child.status === 'completed' ? 'bg-status-ok/20 text-status-ok' :
                       child.status === 'archived' ? 'bg-bambu-gray/20 text-bambu-gray' :
                       'bg-blue-500/20 text-blue-400'
                     }`}>
@@ -900,7 +900,7 @@ export function ProjectDetailPage() {
                 <div
                   key={item.id}
                   className={`p-3 rounded-lg transition-colors ${
-                    item.is_complete ? 'bg-bambu-green/10' : 'bg-bambu-dark'
+                    item.is_complete ? 'bg-status-ok/10' : 'bg-bambu-dark'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -909,7 +909,7 @@ export function ProjectDetailPage() {
                       disabled={updateBomMutation.isPending}
                       className={`w-5 h-5 mt-0.5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                         item.is_complete
-                          ? 'bg-bambu-green border-bambu-green text-white'
+                          ? 'bg-status-ok border-status-ok text-white'
                           : 'border-bambu-gray hover:border-bambu-green'
                       }`}
                     >
@@ -1006,8 +1006,8 @@ export function ProjectDetailPage() {
               {timeline.slice(0, 10).map((event, index) => (
                 <div key={index} className="flex gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    event.event_type === 'print_completed' ? 'bg-bambu-green/20 text-bambu-green' :
-                    event.event_type === 'print_failed' ? 'bg-red-500/20 text-red-400' :
+                    event.event_type === 'print_completed' ? 'bg-status-ok/20 text-status-ok' :
+                    event.event_type === 'print_failed' ? 'bg-status-error/20 text-status-error' :
                     event.event_type === 'print_started' ? 'bg-yellow-500/20 text-yellow-400' :
                     'bg-bambu-dark-tertiary text-bambu-gray'
                   }`}>
