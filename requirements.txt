@@ -38,7 +38,7 @@ qrcode[pil]>=7.4.0
 psutil>=6.0.0
 
 # Authentication
-python-jose[cryptography]>=3.3.0
+PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
 
 # Development
