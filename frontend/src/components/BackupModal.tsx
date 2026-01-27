@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, X, Settings, Bell, FileText, Plug, Printer, Palette, Wrench, Archive, Loader2, Key, AlertTriangle, Link, FolderKanban, Upload } from 'lucide-react';
+import { Download, X, Settings, Bell, FileText, Plug, Printer, Palette, Wrench, Archive, Loader2, Key, AlertTriangle, Link, FolderKanban, Upload, Camera } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from './Card';
 import { Button } from './Button';
@@ -12,6 +12,7 @@ interface BackupCategory {
   icon: React.ReactNode;
   default: boolean;
   description: string;
+  requiresPrinters?: boolean;
 }
 
 const BACKUP_CATEGORIES: BackupCategory[] = [
@@ -62,6 +63,15 @@ const BACKUP_CATEGORIES: BackupCategory[] = [
     icon: <Printer className="w-4 h-4" />,
     default: false,
     description: 'Printer info (access codes excluded)',
+  },
+  {
+    id: 'plate_calibration',
+    labelKey: 'backup.categories.plateCalibration',
+    defaultLabel: 'Plate Detection',
+    icon: <Camera className="w-4 h-4" />,
+    default: false,
+    description: 'Empty plate reference images',
+    requiresPrinters: true,
   },
   {
     id: 'filaments',
@@ -221,33 +231,42 @@ export function BackupModal({ onClose, onExport }: BackupModalProps) {
 
           {/* Categories */}
           <div className={`p-4 space-y-2 max-h-[400px] overflow-y-auto ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
-            {BACKUP_CATEGORIES.map((category) => (
+            {BACKUP_CATEGORIES.map((category) => {
+              const isDisabled = isExporting || (category.requiresPrinters && !selected.printers);
+              return (
               <label
                 key={category.id}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                  selected[category.id]
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                } ${
+                  selected[category.id] && !isDisabled
                     ? 'bg-bambu-green/10 border border-bambu-green/30'
                     : 'bg-bambu-dark hover:bg-bambu-dark-tertiary border border-transparent'
                 }`}
               >
                 <input
                   type="checkbox"
-                  checked={selected[category.id]}
+                  checked={selected[category.id] && !isDisabled}
                   onChange={() => toggleCategory(category.id)}
-                  disabled={isExporting}
+                  disabled={isDisabled}
                   className="w-4 h-4 rounded border-bambu-gray bg-bambu-dark text-bambu-green focus:ring-bambu-green focus:ring-offset-0"
                 />
-                <div className={`${selected[category.id] ? 'text-bambu-green' : 'text-bambu-gray'}`}>
+                <div className={`${selected[category.id] && !isDisabled ? 'text-bambu-green' : 'text-bambu-gray'}`}>
                   {category.icon}
                 </div>
                 <div className="flex-1">
                   <div className="text-white text-sm font-medium">
                     {t(category.labelKey, { defaultValue: category.defaultLabel })}
                   </div>
-                  <div className="text-xs text-bambu-gray">{category.description}</div>
+                  <div className="text-xs text-bambu-gray">
+                    {category.requiresPrinters && !selected.printers
+                      ? 'Requires Printers to be selected'
+                      : category.description}
+                  </div>
                 </div>
               </label>
-            ))}
+              );
+            })}
           </div>
 
           {/* Archive warning */}

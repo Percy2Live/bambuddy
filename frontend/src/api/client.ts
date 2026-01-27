@@ -2214,6 +2214,7 @@ export const api = {
       if (categories.smart_plugs !== undefined) params.set('include_smart_plugs', String(categories.smart_plugs));
       if (categories.external_links !== undefined) params.set('include_external_links', String(categories.external_links));
       if (categories.printers !== undefined) params.set('include_printers', String(categories.printers));
+      if (categories.plate_calibration !== undefined) params.set('include_plate_calibration', String(categories.plate_calibration));
       if (categories.filaments !== undefined) params.set('include_filaments', String(categories.filaments));
       if (categories.maintenance !== undefined) params.set('include_maintenance', String(categories.maintenance));
       if (categories.archives !== undefined) params.set('include_archives', String(categories.archives));
