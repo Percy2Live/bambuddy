@@ -693,9 +693,10 @@ interface FolderTreeItemProps {
   onLink: (folder: LibraryFolderTree) => void;
   onRename: (folder: LibraryFolderTree) => void;
   depth?: number;
+  wrapNames?: boolean;
 }
 
-function FolderTreeItem({ folder, selectedFolderId, onSelect, onDelete, onLink, onRename, depth = 0 }: FolderTreeItemProps) {
+function FolderTreeItem({ folder, selectedFolderId, onSelect, onDelete, onLink, onRename, depth = 0, wrapNames = false }: FolderTreeItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showActions, setShowActions] = useState(false);
   const hasChildren = folder.children.length > 0;
@@ -726,12 +727,12 @@ function FolderTreeItem({ folder, selectedFolderId, onSelect, onDelete, onLink, 
           <div className="w-4.5" />
         )}
         <FolderOpen className="w-4 h-4 text-bambu-green flex-shrink-0" />
-        <span className="text-sm truncate flex-1" title={folder.name}>{folder.name}</span>
+        <span className={`text-sm flex-1 min-w-0 ${wrapNames ? 'break-all' : 'truncate'}`} title={folder.name}>{folder.name}</span>
         {/* Link indicator - clickable to change link */}
         {isLinked && (
           <button
             onClick={(e) => { e.stopPropagation(); onLink(folder); }}
-            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+            className="flex-shrink-0 flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
             title={`${folder.project_name ? `Project: ${folder.project_name}` : `Archive: ${folder.archive_name}`} (click to change)`}
           >
             <Link2 className="w-3 h-3" />
@@ -743,19 +744,19 @@ function FolderTreeItem({ folder, selectedFolderId, onSelect, onDelete, onLink, 
           </button>
         )}
         {folder.file_count > 0 && (
-          <span className="text-xs text-bambu-gray">{folder.file_count}</span>
+          <span className="flex-shrink-0 text-xs text-bambu-gray">{folder.file_count}</span>
         )}
         {/* Quick link button - always visible for unlinked folders */}
         {!isLinked && (
           <button
             onClick={(e) => { e.stopPropagation(); onLink(folder); }}
-            className="p-1 rounded hover:bg-bambu-dark-tertiary"
+            className="flex-shrink-0 p-1 rounded hover:bg-bambu-dark-tertiary"
             title="Link to project or archive"
           >
             <Link2 className="w-3.5 h-3.5 text-bambu-gray hover:text-bambu-green" />
           </button>
         )}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+        <div className={`flex-shrink-0 flex items-center gap-0.5 transition-opacity ${wrapNames ? '' : 'opacity-0 group-hover:opacity-100'}`} onClick={(e) => e.stopPropagation()}>
           <div className="relative">
             <button
               onClick={() => setShowActions(!showActions)}
@@ -806,6 +807,7 @@ function FolderTreeItem({ folder, selectedFolderId, onSelect, onDelete, onLink, 
               onLink={onLink}
               onRename={onRename}
               depth={depth + 1}
+              wrapNames={wrapNames}
             />
           ))}
         </div>
@@ -980,6 +982,55 @@ export function FileManagerPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     return (localStorage.getItem('library-view-mode') as 'grid' | 'list') || 'grid';
   });
+  const [wrapFolderNames, setWrapFolderNames] = useState(() => {
+    return localStorage.getItem('library-wrap-folders') === 'true';
+  });
+
+  // Resizable sidebar state
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('library-sidebar-width');
+    return saved ? parseInt(saved, 10) : 256; // Default w-64 = 256px
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Handle sidebar resize
+  useEffect(() => {
+    if (!isResizing) return;
+
+    // Prevent text selection during resize
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!sidebarRef.current) return;
+      const containerRect = sidebarRef.current.parentElement?.getBoundingClientRect();
+      if (!containerRect) return;
+      // Calculate new width based on mouse position relative to container
+      const newWidth = e.clientX - containerRect.left;
+      // Clamp between 200px and 500px
+      const clampedWidth = Math.min(500, Math.max(200, newWidth));
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      // Save to localStorage
+      localStorage.setItem('library-sidebar-width', String(sidebarWidth));
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, sidebarWidth]);
 
   // Filter and sort state
   const [searchQuery, setSearchQuery] = useState('');
@@ -1372,10 +1423,51 @@ export function FileManagerPage() {
 
       {/* Main content */}
       <div className="flex-1 flex gap-6 min-h-0">
-        {/* Folder sidebar */}
-        <div className="w-64 flex-shrink-0 bg-bambu-card rounded-lg border border-bambu-dark-tertiary overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-bambu-dark-tertiary">
+        {/* Folder sidebar - resizable */}
+        <div
+          ref={sidebarRef}
+          className="flex-shrink-0 bg-bambu-card rounded-lg border border-bambu-dark-tertiary overflow-hidden flex flex-col relative"
+          style={{ width: `${sidebarWidth}px` }}
+        >
+          {/* Resize handle - drag to resize, double-click to reset */}
+          <div
+            className={`absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group/resize flex items-center justify-center transition-colors ${
+              isResizing ? 'bg-bambu-green' : 'hover:bg-bambu-green/50'
+            }`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+            onDoubleClick={() => {
+              setSidebarWidth(256); // Reset to default w-64
+              localStorage.setItem('library-sidebar-width', '256');
+            }}
+            title="Drag to resize, double-click to reset"
+          >
+            {/* Grip dots */}
+            <div className={`flex flex-col gap-1 opacity-0 group-hover/resize:opacity-100 transition-opacity ${isResizing ? 'opacity-100' : ''}`}>
+              <div className="w-0.5 h-0.5 rounded-full bg-white/70" />
+              <div className="w-0.5 h-0.5 rounded-full bg-white/70" />
+              <div className="w-0.5 h-0.5 rounded-full bg-white/70" />
+            </div>
+          </div>
+          <div className="p-3 border-b border-bambu-dark-tertiary flex items-center justify-between">
             <h2 className="text-sm font-medium text-white">Folders</h2>
+            <button
+              onClick={() => {
+                const newValue = !wrapFolderNames;
+                setWrapFolderNames(newValue);
+                localStorage.setItem('library-wrap-folders', String(newValue));
+              }}
+              className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                wrapFolderNames
+                  ? 'bg-bambu-green/20 text-bambu-green'
+                  : 'text-bambu-gray hover:text-white hover:bg-bambu-dark'
+              }`}
+              title={wrapFolderNames ? 'Disable text wrapping' : 'Enable text wrapping'}
+            >
+              Wrap
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {/* All Files (root) */}
@@ -1401,6 +1493,7 @@ export function FileManagerPage() {
                 onDelete={(id) => setDeleteConfirm({ type: 'folder', id })}
                 onLink={setLinkFolder}
                 onRename={(f) => setRenameItem({ type: 'folder', id: f.id, name: f.name })}
+                wrapNames={wrapFolderNames}
               />
             ))}
           </div>
