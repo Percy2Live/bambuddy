@@ -114,6 +114,7 @@ All notable changes to Bambuddy will be documented in this file.
   - Text wrap toggle: "Wrap" button in header to wrap long names instead of truncating
   - Both settings persist in localStorage
   - Tooltip shows full name on hover
+- **K-Profiles Backup Status** - Fixed GitHub backup settings showing incorrect printer connection count (e.g., "1/2 connected" when both printers are connected); now fetches status from API instead of relying on WebSocket cache
 
 ## [0.1.6b11] - 2026-01-22
 

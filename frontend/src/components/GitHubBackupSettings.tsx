@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Github,
   Play,
@@ -27,7 +27,6 @@ import type {
   ScheduleType,
   CloudAuthStatus,
   Printer,
-  PrinterStatus,
 } from '../api/client';
 import { Card, CardContent, CardHeader } from './Card';
 import { Button } from './Button';
@@ -149,11 +148,20 @@ export function GitHubBackupSettings() {
     queryFn: api.getPrinters,
   });
 
-  // Get printer statuses from cache (populated by WebSocket on other pages)
-  const printerStatuses = printers?.map(p => {
-    const status = queryClient.getQueryData<PrinterStatus>(['printerStatus', p.id]);
-    return { printer: p, connected: status?.connected ?? false };
-  }) ?? [];
+  // Fetch printer statuses from API (not just cache) to get accurate connection status
+  const printerStatusQueries = useQueries({
+    queries: (printers ?? []).map(printer => ({
+      queryKey: ['printerStatus', printer.id],
+      queryFn: () => api.getPrinterStatus(printer.id),
+      staleTime: 10000, // Consider stale after 10s
+      refetchInterval: 30000, // Refresh every 30s
+    })),
+  });
+
+  const printerStatuses = (printers ?? []).map((printer, index) => ({
+    printer,
+    connected: printerStatusQueries[index]?.data?.connected ?? false,
+  }));
 
   const totalPrinters = printerStatuses.length;
   const connectedPrinters = printerStatuses.filter(p => p.connected).length;
