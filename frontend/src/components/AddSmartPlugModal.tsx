@@ -24,12 +24,22 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
   const [password, setPassword] = useState(plug?.password || '');
   // Home Assistant fields
   const [haEntityId, setHaEntityId] = useState(plug?.ha_entity_id || '');
-  // MQTT fields
-  const [mqttTopic, setMqttTopic] = useState(plug?.mqtt_topic || '');
+  // MQTT fields - Power
+  const [mqttPowerTopic, setMqttPowerTopic] = useState(plug?.mqtt_power_topic || plug?.mqtt_topic || '');
   const [mqttPowerPath, setMqttPowerPath] = useState(plug?.mqtt_power_path || '');
+  const [mqttPowerMultiplier, setMqttPowerMultiplier] = useState<string>(
+    (plug?.mqtt_power_multiplier ?? plug?.mqtt_multiplier ?? 1).toString()
+  );
+  // MQTT fields - Energy
+  const [mqttEnergyTopic, setMqttEnergyTopic] = useState(plug?.mqtt_energy_topic || '');
   const [mqttEnergyPath, setMqttEnergyPath] = useState(plug?.mqtt_energy_path || '');
+  const [mqttEnergyMultiplier, setMqttEnergyMultiplier] = useState<string>(
+    (plug?.mqtt_energy_multiplier ?? 1).toString()
+  );
+  // MQTT fields - State
+  const [mqttStateTopic, setMqttStateTopic] = useState(plug?.mqtt_state_topic || '');
   const [mqttStatePath, setMqttStatePath] = useState(plug?.mqtt_state_path || '');
-  const [mqttMultiplier, setMqttMultiplier] = useState<string>(plug?.mqtt_multiplier?.toString() || '1');
+  const [mqttStateOnValue, setMqttStateOnValue] = useState(plug?.mqtt_state_on_value || '');
   // HA energy sensor entities (optional)
   const [haPowerEntity, setHaPowerEntity] = useState(plug?.ha_power_entity || '');
   const [haEnergyTodayEntity, setHaEnergyTodayEntity] = useState(plug?.ha_energy_today_entity || '');
@@ -286,12 +296,13 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
     }
 
     if (plugType === 'mqtt') {
-      if (!mqttTopic.trim()) {
-        setError('MQTT topic is required for MQTT plugs');
-        return;
-      }
-      if (!mqttPowerPath.trim() && !mqttStatePath.trim()) {
-        setError('At least power path or state path is required for MQTT plugs');
+      // Check that at least one data source is fully configured
+      const hasPower = mqttPowerTopic.trim() && mqttPowerPath.trim();
+      const hasEnergy = mqttEnergyTopic.trim() && mqttEnergyPath.trim();
+      const hasState = mqttStateTopic.trim() && mqttStatePath.trim();
+
+      if (!hasPower && !hasEnergy && !hasState) {
+        setError('At least one data source must be configured: power (topic + path), energy (topic + path), or state (topic + path)');
         return;
       }
     }
@@ -305,12 +316,18 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
       ha_power_entity: plugType === 'homeassistant' ? (haPowerEntity || null) : null,
       ha_energy_today_entity: plugType === 'homeassistant' ? (haEnergyTodayEntity || null) : null,
       ha_energy_total_entity: plugType === 'homeassistant' ? (haEnergyTotalEntity || null) : null,
-      // MQTT fields
-      mqtt_topic: plugType === 'mqtt' ? mqttTopic.trim() : null,
+      // MQTT power fields
+      mqtt_power_topic: plugType === 'mqtt' ? (mqttPowerTopic.trim() || null) : null,
       mqtt_power_path: plugType === 'mqtt' ? (mqttPowerPath.trim() || null) : null,
+      mqtt_power_multiplier: plugType === 'mqtt' ? (parseFloat(mqttPowerMultiplier) || 1) : 1,
+      // MQTT energy fields
+      mqtt_energy_topic: plugType === 'mqtt' ? (mqttEnergyTopic.trim() || null) : null,
       mqtt_energy_path: plugType === 'mqtt' ? (mqttEnergyPath.trim() || null) : null,
+      mqtt_energy_multiplier: plugType === 'mqtt' ? (parseFloat(mqttEnergyMultiplier) || 1) : 1,
+      // MQTT state fields
+      mqtt_state_topic: plugType === 'mqtt' ? (mqttStateTopic.trim() || null) : null,
       mqtt_state_path: plugType === 'mqtt' ? (mqttStatePath.trim() || null) : null,
-      mqtt_multiplier: plugType === 'mqtt' ? (parseFloat(mqttMultiplier) || 1) : 1,
+      mqtt_state_on_value: plugType === 'mqtt' ? (mqttStateOnValue.trim() || null) : null,
       username: plugType === 'tasmota' ? (username.trim() || null) : null,
       password: plugType === 'tasmota' ? (password.trim() || null) : null,
       printer_id: printerId,
@@ -918,65 +935,123 @@ export function AddSmartPlugModal({ plug, onClose }: AddSmartPlugModalProps) {
                     </p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-bambu-gray mb-1">MQTT Topic *</label>
-                    <input
-                      type="text"
-                      value={mqttTopic}
-                      onChange={(e) => setMqttTopic(e.target.value)}
-                      placeholder="zigbee2mqtt/shelly-working-room"
-                      className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
-                    />
-                    <p className="text-xs text-bambu-gray mt-1">The MQTT topic to subscribe to</p>
+                  {/* Power Section */}
+                  <div className="space-y-3 p-3 bg-bambu-dark rounded-lg border border-bambu-dark-tertiary">
+                    <p className="text-white font-medium text-sm">Power Monitoring</p>
+                    <div>
+                      <label className="block text-sm text-bambu-gray mb-1">Topic</label>
+                      <input
+                        type="text"
+                        value={mqttPowerTopic}
+                        onChange={(e) => setMqttPowerTopic(e.target.value)}
+                        placeholder="zigbee2mqtt/shelly-working-room"
+                        className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">JSON Path</label>
+                        <input
+                          type="text"
+                          value={mqttPowerPath}
+                          onChange={(e) => setMqttPowerPath(e.target.value)}
+                          placeholder="power_l1"
+                          className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">Multiplier</label>
+                        <input
+                          type="text"
+                          value={mqttPowerMultiplier}
+                          onChange={(e) => setMqttPowerMultiplier(e.target.value)}
+                          placeholder="1"
+                          className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-bambu-gray">
+                      Use multiplier 0.001 for mW→W, 1000 for kW→W
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-bambu-gray mb-1">Power JSON Path *</label>
-                    <input
-                      type="text"
-                      value={mqttPowerPath}
-                      onChange={(e) => setMqttPowerPath(e.target.value)}
-                      placeholder="power_l1 or data.power"
-                      className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
-                    />
-                    <p className="text-xs text-bambu-gray mt-1">Path to power value in JSON (dot notation)</p>
+                  {/* Energy Section */}
+                  <div className="space-y-3 p-3 bg-bambu-dark rounded-lg border border-bambu-dark-tertiary">
+                    <p className="text-white font-medium text-sm">Energy Monitoring <span className="text-bambu-gray font-normal">(optional)</span></p>
+                    <div>
+                      <label className="block text-sm text-bambu-gray mb-1">Topic</label>
+                      <input
+                        type="text"
+                        value={mqttEnergyTopic}
+                        onChange={(e) => setMqttEnergyTopic(e.target.value)}
+                        placeholder="Same as power topic, or different"
+                        className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">JSON Path</label>
+                        <input
+                          type="text"
+                          value={mqttEnergyPath}
+                          onChange={(e) => setMqttEnergyPath(e.target.value)}
+                          placeholder="energy_l1"
+                          className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">Multiplier</label>
+                        <input
+                          type="text"
+                          value={mqttEnergyMultiplier}
+                          onChange={(e) => setMqttEnergyMultiplier(e.target.value)}
+                          placeholder="1"
+                          className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-bambu-gray">
+                      Use multiplier 0.001 for Wh→kWh, 1000 for MWh→kWh
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-bambu-gray mb-1">State JSON Path</label>
-                    <input
-                      type="text"
-                      value={mqttStatePath}
-                      onChange={(e) => setMqttStatePath(e.target.value)}
-                      placeholder="state_l1"
-                      className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
-                    />
-                    <p className="text-xs text-bambu-gray mt-1">Path to ON/OFF state (optional)</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-bambu-gray mb-1">Energy JSON Path</label>
-                    <input
-                      type="text"
-                      value={mqttEnergyPath}
-                      onChange={(e) => setMqttEnergyPath(e.target.value)}
-                      placeholder="energy_l1"
-                      className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
-                    />
-                    <p className="text-xs text-bambu-gray mt-1">Path to energy/kWh value (optional)</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-bambu-gray mb-1">Multiplier</label>
-                    <input
-                      type="text"
-                      value={mqttMultiplier}
-                      onChange={(e) => setMqttMultiplier(e.target.value)}
-                      placeholder="1"
-                      className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
-                    />
-                    <p className="text-xs text-bambu-gray mt-1">
-                      Multiply values by this factor. Use 0.001 to convert mW to W, 1000 for kW to W.
+                  {/* State Section */}
+                  <div className="space-y-3 p-3 bg-bambu-dark rounded-lg border border-bambu-dark-tertiary">
+                    <p className="text-white font-medium text-sm">State Monitoring <span className="text-bambu-gray font-normal">(optional)</span></p>
+                    <div>
+                      <label className="block text-sm text-bambu-gray mb-1">Topic</label>
+                      <input
+                        type="text"
+                        value={mqttStateTopic}
+                        onChange={(e) => setMqttStateTopic(e.target.value)}
+                        placeholder="Same as power topic, or different"
+                        className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">JSON Path</label>
+                        <input
+                          type="text"
+                          value={mqttStatePath}
+                          onChange={(e) => setMqttStatePath(e.target.value)}
+                          placeholder="state_l1"
+                          className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-bambu-gray mb-1">ON Value</label>
+                        <input
+                          type="text"
+                          value={mqttStateOnValue}
+                          onChange={(e) => setMqttStateOnValue(e.target.value)}
+                          placeholder="ON, true, 1"
+                          className="w-full px-3 py-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:border-bambu-green focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-bambu-gray">
+                      ON value: the exact string that means "ON". Leave empty for auto-detect (ON, true, 1)
                     </p>
                   </div>
                 </>

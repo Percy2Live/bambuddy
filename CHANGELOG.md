@@ -8,8 +8,10 @@ All notable changes to Bambuddy will be documented in this file.
 - **MQTT Smart Plug Support** - Add smart plugs that subscribe to MQTT topics for energy monitoring (Issue #173):
   - New "MQTT" plug type alongside Tasmota and Home Assistant
   - Subscribe to any MQTT topic (Zigbee2MQTT, Shelly, Tasmota discovery, etc.)
-  - Configurable JSON paths for power, energy, and state extraction (e.g., `power_l1`, `data.power`)
-  - Optional multiplier for unit conversion (mW to W, etc.)
+  - **Separate topics per data type**: Configure different MQTT topics for power, energy, and state
+  - Configurable JSON paths for data extraction (e.g., `power_l1`, `data.power`)
+  - **Separate multipliers**: Individual multiplier for power and energy (e.g., mW→W, Wh→kWh)
+  - **Custom ON value**: Configure what value means "ON" for state (e.g., "ON", "true", "1")
   - Monitor-only: displays power/energy data without control capabilities
   - Reuses existing MQTT broker settings from Settings → Network
   - Energy data included in statistics and per-print tracking

@@ -21,12 +21,24 @@ const createMockPlug = (overrides: Partial<SmartPlug> = {}): SmartPlug => ({
   plug_type: 'tasmota',
   ip_address: '192.168.1.100',
   ha_entity_id: null,
-  // MQTT fields
+  ha_power_entity: null,
+  ha_energy_today_entity: null,
+  ha_energy_total_entity: null,
+  // MQTT fields (legacy)
   mqtt_topic: null,
-  mqtt_power_path: null,
-  mqtt_energy_path: null,
-  mqtt_state_path: null,
   mqtt_multiplier: 1.0,
+  // MQTT power fields
+  mqtt_power_topic: null,
+  mqtt_power_path: null,
+  mqtt_power_multiplier: 1.0,
+  // MQTT energy fields
+  mqtt_energy_topic: null,
+  mqtt_energy_path: null,
+  mqtt_energy_multiplier: 1.0,
+  // MQTT state fields
+  mqtt_state_topic: null,
+  mqtt_state_path: null,
+  mqtt_state_on_value: null,
   printer_id: 1,
   enabled: true,
   auto_on: true,

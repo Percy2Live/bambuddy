@@ -26,6 +26,16 @@ class SmartPlugMQTTData:
     last_seen: datetime = field(default_factory=datetime.utcnow)
 
 
+@dataclass
+class MQTTDataSourceConfig:
+    """Configuration for a single MQTT data source (power, energy, or state)."""
+
+    topic: str
+    path: str
+    multiplier: float = 1.0  # For power/energy
+    on_value: str | None = None  # For state (what value means "ON")
+
+
 class MQTTSmartPlugService:
     """Subscribes to MQTT topics for smart plug energy monitoring."""
 
@@ -36,10 +46,10 @@ class MQTTSmartPlugService:
         self.client: mqtt.Client | None = None
         self.connected = False
         self._lock = threading.Lock()
-        # topic -> list of plug_ids (multiple plugs can subscribe to same topic with different paths)
-        self.subscriptions: dict[str, list[int]] = {}
-        # plug_id -> (topic, power_path, energy_path, state_path, multiplier)
-        self.plug_configs: dict[int, tuple[str, str | None, str | None, str | None, float]] = {}
+        # topic -> list of (plug_id, data_type) where data_type is "power", "energy", or "state"
+        self.subscriptions: dict[str, list[tuple[int, str]]] = {}
+        # plug_id -> {data_type: MQTTDataSourceConfig}
+        self.plug_configs: dict[int, dict[str, MQTTDataSourceConfig]] = {}
         # plug_id -> latest data
         self.plug_data: dict[int, SmartPlugMQTTData] = {}
         self._configured = False
@@ -205,78 +215,80 @@ class MQTTSmartPlugService:
         topic = msg.topic
 
         with self._lock:
-            plug_ids = self.subscriptions.get(topic, [])
-            if not plug_ids:
+            subscriptions = self.subscriptions.get(topic, [])
+            if not subscriptions:
                 return
 
-            # Parse JSON payload
+            # Parse JSON payload (or treat as raw value)
             try:
                 payload = json.loads(msg.payload.decode("utf-8"))
-            except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                logger.debug(f"MQTT smart plug: failed to parse message on {topic}: {e}")
-                return
+                is_json = True
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                # Not JSON - treat the whole payload as a raw value
+                payload = msg.payload.decode("utf-8").strip()
+                is_json = False
 
-            # Process for each subscribed plug
-            for plug_id in plug_ids:
-                config = self.plug_configs.get(plug_id)
+            # Process for each subscribed (plug_id, data_type)
+            for plug_id, data_type in subscriptions:
+                configs = self.plug_configs.get(plug_id, {})
+                config = configs.get(data_type)
                 if not config:
                     continue
 
-                _, power_path, energy_path, state_path, multiplier = config
-
-                # Extract values
-                power = None
-                energy = None
-                state = None
-
-                if power_path:
-                    raw_power = self._extract_json_path(payload, power_path)
-                    if raw_power is not None:
-                        try:
-                            power = float(raw_power) * multiplier
-                        except (ValueError, TypeError):
-                            pass
-
-                if energy_path:
-                    raw_energy = self._extract_json_path(payload, energy_path)
-                    if raw_energy is not None:
-                        try:
-                            energy = float(raw_energy) * multiplier
-                        except (ValueError, TypeError):
-                            pass
-
-                if state_path:
-                    raw_state = self._extract_json_path(payload, state_path)
-                    if raw_state is not None:
-                        # Normalize state to ON/OFF
-                        state_str = str(raw_state).upper()
-                        if state_str in ("ON", "1", "TRUE"):
-                            state = "ON"
-                        elif state_str in ("OFF", "0", "FALSE"):
-                            state = "OFF"
-                        else:
-                            state = state_str
-
-                # Update plug data
-                if plug_id in self.plug_data:
-                    data = self.plug_data[plug_id]
-                    if power is not None:
-                        data.power = power
-                    if energy is not None:
-                        data.energy = energy
-                    if state is not None:
-                        data.state = state
-                    data.last_seen = datetime.utcnow()
+                # Extract value using path (or use raw payload if no path or not JSON)
+                if is_json and config.path:
+                    raw_value = self._extract_json_path(payload, config.path)
+                elif is_json and not config.path:
+                    # JSON but no path - use the whole payload (shouldn't happen normally)
+                    raw_value = payload
                 else:
-                    self.plug_data[plug_id] = SmartPlugMQTTData(
-                        plug_id=plug_id,
-                        power=power,
-                        energy=energy,
-                        state=state,
-                        last_seen=datetime.utcnow(),
-                    )
+                    # Raw value (non-JSON)
+                    raw_value = payload
 
-                logger.debug(f"MQTT smart plug {plug_id}: power={power}, energy={energy}, state={state}")
+                if raw_value is None:
+                    continue
+
+                # Initialize plug data if needed
+                if plug_id not in self.plug_data:
+                    self.plug_data[plug_id] = SmartPlugMQTTData(plug_id=plug_id)
+
+                data = self.plug_data[plug_id]
+                data.last_seen = datetime.utcnow()
+
+                # Process based on data type
+                if data_type == "power":
+                    try:
+                        data.power = float(raw_value) * config.multiplier
+                        logger.debug(f"MQTT smart plug {plug_id}: power={data.power}")
+                    except (ValueError, TypeError):
+                        pass
+
+                elif data_type == "energy":
+                    try:
+                        data.energy = float(raw_value) * config.multiplier
+                        logger.debug(f"MQTT smart plug {plug_id}: energy={data.energy}")
+                    except (ValueError, TypeError):
+                        pass
+
+                elif data_type == "state":
+                    state_str = str(raw_value)
+                    # Check against configured ON value if set
+                    if config.on_value:
+                        # Case-insensitive comparison
+                        if state_str.lower() == config.on_value.lower():
+                            data.state = "ON"
+                        else:
+                            data.state = "OFF"
+                    else:
+                        # Default behavior: normalize common values
+                        upper_state = state_str.upper()
+                        if upper_state in ("ON", "1", "TRUE"):
+                            data.state = "ON"
+                        elif upper_state in ("OFF", "0", "FALSE"):
+                            data.state = "OFF"
+                        else:
+                            data.state = state_str
+                    logger.debug(f"MQTT smart plug {plug_id}: state={data.state}")
 
     def _extract_json_path(self, data: dict, path: str) -> Any:
         """Extract value using dot notation (e.g., 'power_l1' or 'data.power').
@@ -304,61 +316,131 @@ class MQTTSmartPlugService:
 
         with self._lock:
             for topic in self.subscriptions:
-                try:
-                    self.client.subscribe(topic, qos=1)
-                    logger.debug(f"MQTT smart plug: resubscribed to {topic}")
-                except Exception as e:
-                    logger.error(f"MQTT smart plug: failed to resubscribe to {topic}: {e}")
+                if self.subscriptions[topic]:  # Only if there are subscribers
+                    try:
+                        self.client.subscribe(topic, qos=1)
+                        logger.debug(f"MQTT smart plug: resubscribed to {topic}")
+                    except Exception as e:
+                        logger.error(f"MQTT smart plug: failed to resubscribe to {topic}: {e}")
 
     def subscribe(
         self,
         plug_id: int,
-        topic: str,
+        # Power source
+        power_topic: str | None = None,
         power_path: str | None = None,
+        power_multiplier: float = 1.0,
+        # Energy source
+        energy_topic: str | None = None,
         energy_path: str | None = None,
+        energy_multiplier: float = 1.0,
+        # State source
+        state_topic: str | None = None,
         state_path: str | None = None,
+        state_on_value: str | None = None,
+        # Legacy: single topic/path/multiplier (for backward compatibility)
+        topic: str | None = None,
         multiplier: float = 1.0,
     ):
-        """Subscribe to a topic for a plug."""
+        """Subscribe to MQTT topics for a plug.
+
+        Each data type (power, energy, state) can have its own topic.
+        For backward compatibility, if power_topic is not set but topic is,
+        topic will be used for all data types that have paths configured.
+        """
         with self._lock:
-            # Store configuration
-            self.plug_configs[plug_id] = (topic, power_path, energy_path, state_path, multiplier)
+            # Initialize config for this plug
+            self.plug_configs[plug_id] = {}
 
-            # Add to subscriptions
-            if topic not in self.subscriptions:
-                self.subscriptions[topic] = []
-                # Actually subscribe if connected
-                if self.client and self.connected:
-                    try:
-                        self.client.subscribe(topic, qos=1)
-                        logger.info(f"MQTT smart plug {plug_id}: subscribed to {topic}")
-                    except Exception as e:
-                        logger.error(f"MQTT smart plug: failed to subscribe to {topic}: {e}")
+            # Determine topics (new fields take priority, fall back to legacy)
+            effective_power_topic = power_topic or topic
+            effective_energy_topic = energy_topic or topic
+            effective_state_topic = state_topic or topic
 
-            if plug_id not in self.subscriptions[topic]:
-                self.subscriptions[topic].append(plug_id)
+            # Use new multipliers or fall back to legacy
+            effective_power_mult = power_multiplier if power_multiplier != 1.0 else multiplier
+            effective_energy_mult = energy_multiplier if energy_multiplier != 1.0 else multiplier
+
+            # Configure power subscription
+            if effective_power_topic and power_path:
+                config = MQTTDataSourceConfig(
+                    topic=effective_power_topic,
+                    path=power_path,
+                    multiplier=effective_power_mult,
+                )
+                self.plug_configs[plug_id]["power"] = config
+                self._add_subscription(plug_id, effective_power_topic, "power")
+
+            # Configure energy subscription
+            if effective_energy_topic and energy_path:
+                config = MQTTDataSourceConfig(
+                    topic=effective_energy_topic,
+                    path=energy_path,
+                    multiplier=effective_energy_mult,
+                )
+                self.plug_configs[plug_id]["energy"] = config
+                self._add_subscription(plug_id, effective_energy_topic, "energy")
+
+            # Configure state subscription
+            if effective_state_topic and state_path:
+                config = MQTTDataSourceConfig(
+                    topic=effective_state_topic,
+                    path=state_path,
+                    on_value=state_on_value,
+                )
+                self.plug_configs[plug_id]["state"] = config
+                self._add_subscription(plug_id, effective_state_topic, "state")
 
             # Initialize data entry
             if plug_id not in self.plug_data:
                 self.plug_data[plug_id] = SmartPlugMQTTData(plug_id=plug_id)
 
+            logger.info(
+                f"MQTT smart plug {plug_id}: configured with "
+                f"power={effective_power_topic if power_path else None}, "
+                f"energy={effective_energy_topic if energy_path else None}, "
+                f"state={effective_state_topic if state_path else None}"
+            )
+
+    def _add_subscription(self, plug_id: int, topic: str, data_type: str):
+        """Add a subscription for a plug/data_type to a topic."""
+        if topic not in self.subscriptions:
+            self.subscriptions[topic] = []
+            # Actually subscribe if connected
+            if self.client and self.connected:
+                try:
+                    self.client.subscribe(topic, qos=1)
+                    logger.info(f"MQTT smart plug: subscribed to {topic}")
+                except Exception as e:
+                    logger.error(f"MQTT smart plug: failed to subscribe to {topic}: {e}")
+
+        entry = (plug_id, data_type)
+        if entry not in self.subscriptions[topic]:
+            self.subscriptions[topic].append(entry)
+
     def unsubscribe(self, plug_id: int):
         """Unsubscribe when plug is deleted/updated."""
         with self._lock:
-            # Get the topic for this plug
-            config = self.plug_configs.pop(plug_id, None)
-            if not config:
-                return
+            # Get all configs for this plug
+            configs = self.plug_configs.pop(plug_id, {})
+            if not configs:
+                # Still clean up any stray subscriptions
+                pass
 
-            topic = config[0]
+            # Collect all topics this plug was subscribed to
+            topics_to_check = set()
+            for _data_type, config in configs.items():
+                topics_to_check.add(config.topic)
 
-            # Remove from subscriptions
-            if topic in self.subscriptions:
-                if plug_id in self.subscriptions[topic]:
-                    self.subscriptions[topic].remove(plug_id)
+            # Also scan subscriptions to remove any entries for this plug
+            for topic in list(self.subscriptions.keys()):
+                # Remove all entries for this plug_id
+                self.subscriptions[topic] = [(pid, dtype) for pid, dtype in self.subscriptions[topic] if pid != plug_id]
+                topics_to_check.add(topic)
 
-                # If no more plugs on this topic, unsubscribe
-                if not self.subscriptions[topic]:
+            # Unsubscribe from topics with no more subscribers
+            for topic in topics_to_check:
+                if topic in self.subscriptions and not self.subscriptions[topic]:
                     del self.subscriptions[topic]
                     if self.client and self.connected:
                         try:

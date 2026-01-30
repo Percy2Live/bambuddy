@@ -760,7 +760,7 @@ async def run_migrations(conn):
     except Exception:
         pass
 
-    # Migration: Add MQTT smart plug fields
+    # Migration: Add MQTT smart plug fields (legacy)
     try:
         await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_topic VARCHAR(200)"))
     except Exception:
@@ -779,6 +779,45 @@ async def run_migrations(conn):
         pass
     try:
         await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_multiplier REAL DEFAULT 1.0"))
+    except Exception:
+        pass
+
+    # Migration: Add enhanced MQTT smart plug fields (separate topics and multipliers)
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_power_topic VARCHAR(200)"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_power_multiplier REAL DEFAULT 1.0"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_energy_topic VARCHAR(200)"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_energy_multiplier REAL DEFAULT 1.0"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_state_topic VARCHAR(200)"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE smart_plugs ADD COLUMN mqtt_state_on_value VARCHAR(50)"))
+    except Exception:
+        pass
+
+    # Migration: Copy existing mqtt_topic to mqtt_power_topic for backward compatibility
+    try:
+        await conn.execute(
+            text("""
+            UPDATE smart_plugs
+            SET mqtt_power_topic = mqtt_topic,
+                mqtt_power_multiplier = mqtt_multiplier
+            WHERE mqtt_topic IS NOT NULL AND mqtt_power_topic IS NULL
+        """)
+        )
     except Exception:
         pass
 

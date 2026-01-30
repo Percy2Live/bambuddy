@@ -315,9 +315,19 @@ def smart_plug_factory(db_session):
             defaults["ha_entity_id"] = "switch.test"
             defaults["ip_address"] = None
         elif plug_type == "mqtt":
+            # Legacy fields (for backward compatibility tests)
             defaults["mqtt_topic"] = kwargs.get("mqtt_topic", "test/topic")
-            defaults["mqtt_power_path"] = kwargs.get("mqtt_power_path", "power")
             defaults["mqtt_multiplier"] = kwargs.get("mqtt_multiplier", 1.0)
+            # New separate topic/path/multiplier fields
+            defaults["mqtt_power_topic"] = kwargs.get("mqtt_power_topic")
+            defaults["mqtt_power_path"] = kwargs.get("mqtt_power_path", "power")
+            defaults["mqtt_power_multiplier"] = kwargs.get("mqtt_power_multiplier", 1.0)
+            defaults["mqtt_energy_topic"] = kwargs.get("mqtt_energy_topic")
+            defaults["mqtt_energy_path"] = kwargs.get("mqtt_energy_path")
+            defaults["mqtt_energy_multiplier"] = kwargs.get("mqtt_energy_multiplier", 1.0)
+            defaults["mqtt_state_topic"] = kwargs.get("mqtt_state_topic")
+            defaults["mqtt_state_path"] = kwargs.get("mqtt_state_path")
+            defaults["mqtt_state_on_value"] = kwargs.get("mqtt_state_on_value")
             defaults["ip_address"] = None
             defaults["ha_entity_id"] = None
         else:

@@ -694,3 +694,132 @@ class TestSmartPlugsAPI:
         result = response.json()
         assert result["mqtt_topic"] == "new/topic"
         assert result["mqtt_power_path"] == "new_power"
+
+    # ========================================================================
+    # Enhanced MQTT Integration tests (separate topics per data type)
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_create_mqtt_plug_with_separate_topics(self, async_client: AsyncClient, mock_mqtt_smart_plug_service):
+        """Verify MQTT plug can be created with separate topics for power, energy, and state."""
+        data = {
+            "name": "MQTT Separate Topics",
+            "plug_type": "mqtt",
+            "mqtt_power_topic": "zigbee/power",
+            "mqtt_power_path": "power_l1",
+            "mqtt_power_multiplier": 0.001,
+            "mqtt_energy_topic": "zigbee/energy",
+            "mqtt_energy_path": "energy_total",
+            "mqtt_energy_multiplier": 1.0,
+            "mqtt_state_topic": "zigbee/state",
+            "mqtt_state_path": "state",
+            "mqtt_state_on_value": "ON",
+            "enabled": True,
+        }
+
+        response = await async_client.post("/api/v1/smart-plugs/", json=data)
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["name"] == "MQTT Separate Topics"
+        assert result["plug_type"] == "mqtt"
+        # Power fields
+        assert result["mqtt_power_topic"] == "zigbee/power"
+        assert result["mqtt_power_path"] == "power_l1"
+        assert result["mqtt_power_multiplier"] == 0.001
+        # Energy fields
+        assert result["mqtt_energy_topic"] == "zigbee/energy"
+        assert result["mqtt_energy_path"] == "energy_total"
+        assert result["mqtt_energy_multiplier"] == 1.0
+        # State fields
+        assert result["mqtt_state_topic"] == "zigbee/state"
+        assert result["mqtt_state_path"] == "state"
+        assert result["mqtt_state_on_value"] == "ON"
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_create_mqtt_plug_energy_only(self, async_client: AsyncClient, mock_mqtt_smart_plug_service):
+        """Verify MQTT plug can be created with only energy monitoring."""
+        data = {
+            "name": "Energy Only Monitor",
+            "plug_type": "mqtt",
+            "mqtt_energy_topic": "sensors/energy",
+            "mqtt_energy_path": "kwh",
+            "mqtt_energy_multiplier": 0.001,  # Wh to kWh
+            "enabled": True,
+        }
+
+        response = await async_client.post("/api/v1/smart-plugs/", json=data)
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["mqtt_energy_topic"] == "sensors/energy"
+        assert result["mqtt_energy_path"] == "kwh"
+        assert result["mqtt_energy_multiplier"] == 0.001
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_create_mqtt_plug_state_only(self, async_client: AsyncClient, mock_mqtt_smart_plug_service):
+        """Verify MQTT plug can be created with only state monitoring."""
+        data = {
+            "name": "State Only Monitor",
+            "plug_type": "mqtt",
+            "mqtt_state_topic": "switches/outlet",
+            "mqtt_state_path": "state",
+            "mqtt_state_on_value": "true",
+            "enabled": True,
+        }
+
+        response = await async_client.post("/api/v1/smart-plugs/", json=data)
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["mqtt_state_topic"] == "switches/outlet"
+        assert result["mqtt_state_path"] == "state"
+        assert result["mqtt_state_on_value"] == "true"
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_create_mqtt_plug_no_data_source_fails(self, async_client: AsyncClient):
+        """Verify creating MQTT plug without any complete data source fails."""
+        data = {
+            "name": "Invalid MQTT Plug",
+            "plug_type": "mqtt",
+            # Has topic but no path - not a complete data source
+            "mqtt_power_topic": "zigbee/power",
+            "enabled": True,
+        }
+
+        response = await async_client.post("/api/v1/smart-plugs/", json=data)
+
+        assert response.status_code == 422  # Validation error
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_update_mqtt_plug_separate_multipliers(
+        self, async_client: AsyncClient, smart_plug_factory, db_session, mock_mqtt_smart_plug_service
+    ):
+        """Verify MQTT plug multipliers can be updated separately."""
+        plug = await smart_plug_factory(
+            plug_type="mqtt",
+            mqtt_power_topic="test/power",
+            mqtt_power_path="power",
+            mqtt_power_multiplier=1.0,
+            mqtt_energy_topic="test/energy",
+            mqtt_energy_path="energy",
+            mqtt_energy_multiplier=1.0,
+        )
+
+        response = await async_client.patch(
+            f"/api/v1/smart-plugs/{plug.id}",
+            json={
+                "mqtt_power_multiplier": 0.001,  # Change power multiplier only
+                "mqtt_energy_multiplier": 0.001,  # Change energy multiplier only
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["mqtt_power_multiplier"] == 0.001
+        assert result["mqtt_energy_multiplier"] == 0.001

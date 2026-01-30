@@ -848,11 +848,21 @@ export interface SmartPlug {
   ha_energy_today_entity: string | null;
   ha_energy_total_entity: string | null;
   // MQTT fields (required when plug_type="mqtt")
-  mqtt_topic: string | null;  // e.g., "zigbee2mqtt/shelly-working-room"
+  // Legacy field - kept for backward compatibility
+  mqtt_topic: string | null;  // Deprecated, use mqtt_power_topic
+  mqtt_multiplier: number;  // Deprecated, use mqtt_power_multiplier
+  // Power monitoring
+  mqtt_power_topic: string | null;  // Topic for power data
   mqtt_power_path: string | null;  // e.g., "power_l1" or "data.power"
+  mqtt_power_multiplier: number;  // Unit conversion for power
+  // Energy monitoring
+  mqtt_energy_topic: string | null;  // Topic for energy data
   mqtt_energy_path: string | null;  // e.g., "energy_l1"
+  mqtt_energy_multiplier: number;  // Unit conversion for energy
+  // State monitoring
+  mqtt_state_topic: string | null;  // Topic for state data
   mqtt_state_path: string | null;  // e.g., "state_l1" for ON/OFF
-  mqtt_multiplier: number;  // Unit conversion (e.g., 0.001 for mW→W)
+  mqtt_state_on_value: string | null;  // What value means "ON" (e.g., "ON", "true", "1")
   printer_id: number | null;
   enabled: boolean;
   auto_on: boolean;
@@ -891,11 +901,21 @@ export interface SmartPlugCreate {
   ha_energy_today_entity?: string | null;
   ha_energy_total_entity?: string | null;
   // MQTT fields (required when plug_type="mqtt")
+  // Legacy fields - kept for backward compatibility
   mqtt_topic?: string | null;
-  mqtt_power_path?: string | null;
-  mqtt_energy_path?: string | null;
-  mqtt_state_path?: string | null;
   mqtt_multiplier?: number;
+  // Power monitoring
+  mqtt_power_topic?: string | null;
+  mqtt_power_path?: string | null;
+  mqtt_power_multiplier?: number;
+  // Energy monitoring
+  mqtt_energy_topic?: string | null;
+  mqtt_energy_path?: string | null;
+  mqtt_energy_multiplier?: number;
+  // State monitoring
+  mqtt_state_topic?: string | null;
+  mqtt_state_path?: string | null;
+  mqtt_state_on_value?: string | null;
   printer_id?: number | null;
   enabled?: boolean;
   auto_on?: boolean;
@@ -926,12 +946,21 @@ export interface SmartPlugUpdate {
   ha_power_entity?: string | null;
   ha_energy_today_entity?: string | null;
   ha_energy_total_entity?: string | null;
-  // MQTT fields
+  // MQTT fields (legacy)
   mqtt_topic?: string | null;
-  mqtt_power_path?: string | null;
-  mqtt_energy_path?: string | null;
-  mqtt_state_path?: string | null;
   mqtt_multiplier?: number;
+  // MQTT power fields
+  mqtt_power_topic?: string | null;
+  mqtt_power_path?: string | null;
+  mqtt_power_multiplier?: number;
+  // MQTT energy fields
+  mqtt_energy_topic?: string | null;
+  mqtt_energy_path?: string | null;
+  mqtt_energy_multiplier?: number;
+  // MQTT state fields
+  mqtt_state_topic?: string | null;
+  mqtt_state_path?: string | null;
+  mqtt_state_on_value?: string | null;
   printer_id?: number | null;
   enabled?: boolean;
   auto_on?: boolean;
