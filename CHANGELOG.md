@@ -116,6 +116,15 @@ All notable changes to Bambuddy will be documented in this file.
   - Job Failed: When a job fails to start (enabled by default)
   - Queue Complete: When all queued jobs finish
   - New "Print Queue" section in notification provider settings
+- **Installation Scripts** - Interactive install scripts for Linux and macOS:
+  - Native install (`install.sh`): Python venv, systemd/launchd service, Node.js 22
+  - Docker install (`docker-install.sh`): Docker Compose setup with health checks
+  - Interactive prompts for: install path, port, bind address, timezone, data/log directories
+  - Unattended mode with `--yes` flag for automation
+  - Auto-detects OS and package manager (apt, dnf, pacman, brew)
+  - Option to set system timezone during installation
+  - Shows IP address for network access when binding to 0.0.0.0
+  - Supports updating existing installations
 
 ### Fixes
 - **Multi-Plate Thumbnail in Queue** - Fixed queue items showing wrong thumbnail for multi-plate files (Issue #166):
