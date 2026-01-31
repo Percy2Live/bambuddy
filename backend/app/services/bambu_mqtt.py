@@ -2031,6 +2031,8 @@ class BambuMQTTClient:
             ams_mapping2 = []
             if ams_mapping is not None:
                 for tray_id in ams_mapping:
+                    # Ensure tray_id is an integer (may be string from JSON)
+                    tray_id = int(tray_id) if tray_id is not None else -1
                     if tray_id == -1 or tray_id == 255:
                         ams_mapping2.append({"ams_id": 255, "slot_id": 255})
                     else:
