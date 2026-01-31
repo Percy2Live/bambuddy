@@ -378,7 +378,9 @@ class PlateDetector:
 
         except Exception as e:
             logger.exception("Error during plate calibration")
-            return False, f"Calibration error: {e!s}", -1
+            # Don't expose exception details to user - log has full info
+            error_type = type(e).__name__
+            return False, f"Calibration error: {error_type}", -1
 
     def get_calibration_count(self, printer_id: int) -> int:
         """Get the number of calibration references for a printer."""
