@@ -157,6 +157,10 @@ All notable changes to Bambuddy will be documented in this file.
   - Tooltip shows full name on hover
 - **K-Profiles Backup Status** - Fixed GitHub backup settings showing incorrect printer connection count (e.g., "1/2 connected" when both printers are connected); now fetches status from API instead of relying on WebSocket cache
 - **GitHub Backup Timestamps** - Removed volatile timestamps from GitHub backup files so git diffs only show actual data changes
+- **Home Assistant Smart Plug Auto-On** - Fixed print scheduler only checking Tasmota plugs when powering on printers for queued prints (Issue #200):
+  - Home Assistant smart plugs now work with automatic printer power-on for scheduled queue jobs
+  - Previously only Tasmota plugs were checked, causing HA plugs to fail with "Tasmota device not found" error
+  - Both `_power_on_and_wait` and `_power_off_if_needed` now use the correct service based on plug type
 
 ### Maintenance
 - Upgraded vitest from 2.x to 3.x to resolve npm audit security vulnerabilities in dev dependencies
