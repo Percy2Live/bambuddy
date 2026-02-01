@@ -729,6 +729,12 @@ async def run_migrations(conn):
     except Exception:
         pass
 
+    # Migration: Add sliced_for_model column to print_archives for model-based queue assignment
+    try:
+        await conn.execute(text("ALTER TABLE print_archives ADD COLUMN sliced_for_model VARCHAR(50)"))
+    except Exception:
+        pass
+
     # Migration: Add is_external column to library_files for external cloud files
     try:
         await conn.execute(text("ALTER TABLE library_files ADD COLUMN is_external BOOLEAN DEFAULT 0"))
