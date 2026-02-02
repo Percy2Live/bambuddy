@@ -12,6 +12,11 @@ All notable changes to Bambuddy will be documented in this file.
   - Link button correctly disabled when no unlinked spools are available in Spoolman
   - Toast notification shown on successful/failed spool linking
   - Added `/api/v1/spoolman/spools/linked` endpoint returning map of linked spool tags to IDs
+- **Complete German Translations**:
+  - All UI strings now fully translated to German (1800+ translation keys)
+  - Pages translated: Settings, Archives, File Manager, Queue, Printers, Profiles, Projects, Stats, Maintenance, Camera, Groups, Users, Login, Setup, Stream Overlay
+  - Components translated: ConfirmModal, LinkSpoolModal, FilamentHoverCard, Layout
+  - Added locale parity test to ensure English and German stay in sync
 
 ## [0.1.6.2] - 2026-02-02
 

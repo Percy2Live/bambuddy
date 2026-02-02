@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2, Link2, Check } from 'lucide-react';
 import { api } from '../api/client';
 import { Button } from './Button';
@@ -17,6 +18,7 @@ interface LinkSpoolModalProps {
 }
 
 export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoolModalProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [selectedSpoolId, setSelectedSpoolId] = useState<number | null>(null);
@@ -35,11 +37,11 @@ export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoo
       queryClient.invalidateQueries({ queryKey: ['unlinked-spools'] });
       queryClient.invalidateQueries({ queryKey: ['linked-spools'] });
       queryClient.invalidateQueries({ queryKey: ['spoolman-status'] });
-      showToast('Spool linked to Spoolman successfully', 'success');
+      showToast(t('spoolman.linkSuccess'), 'success');
       onClose();
     },
     onError: (error: Error) => {
-      showToast(`Failed to link spool: ${error.message}`, 'error');
+      showToast(`${t('spoolman.linkFailed')}: ${error.message}`, 'error');
     },
   });
 
@@ -65,7 +67,7 @@ export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoo
         <div className="flex items-center justify-between p-4 border-b border-bambu-dark-tertiary">
           <div className="flex items-center gap-2">
             <Link2 className="w-5 h-5 text-bambu-green" />
-            <h2 className="text-lg font-semibold text-white">Link to Spoolman</h2>
+            <h2 className="text-lg font-semibold text-white">{t('spoolman.linkToSpoolman')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -96,14 +98,14 @@ export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoo
 
           {/* Spool UUID */}
           <div className="p-3 bg-bambu-dark rounded-lg border border-bambu-dark-tertiary">
-            <p className="text-xs text-bambu-gray mb-1">Spool UUID:</p>
+            <p className="text-xs text-bambu-gray mb-1">{t('spoolman.spoolId')}:</p>
             <code className="text-xs text-bambu-green font-mono break-all">{trayUuid}</code>
           </div>
 
           {/* Spool list */}
           <div>
             <p className="text-sm text-bambu-gray mb-2">
-              Select a Spoolman spool to link:
+              {t('spoolman.selectSpool')}:
             </p>
 
             {isLoading ? (
@@ -148,8 +150,7 @@ export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoo
               </div>
             ) : (
               <div className="text-center py-8 text-bambu-gray">
-                <p>No unlinked spools found in Spoolman.</p>
-                <p className="text-xs mt-1">All spools are already linked to AMS trays.</p>
+                <p>{t('spoolman.noUnlinkedSpools')}</p>
               </div>
             )}
           </div>
@@ -158,7 +159,7 @@ export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoo
         {/* Footer */}
         <div className="flex justify-end gap-2 p-4 border-t border-bambu-dark-tertiary">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleLink}
@@ -167,12 +168,12 @@ export function LinkSpoolModal({ isOpen, onClose, trayUuid, trayInfo }: LinkSpoo
             {linkMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Linking...
+                {t('spoolman.syncing')}
               </>
             ) : (
               <>
                 <Link2 className="w-4 h-4" />
-                Link Spool
+                {t('spoolman.linkToSpoolman')}
               </>
             )}
           </Button>

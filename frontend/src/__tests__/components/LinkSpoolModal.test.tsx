@@ -78,7 +78,8 @@ describe('LinkSpoolModal', () => {
       render(<LinkSpoolModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Link to Spoolman')).toBeInTheDocument();
+        // Look for the title in h2 element
+        expect(screen.getByRole('heading', { name: /link to spoolman/i })).toBeInTheDocument();
       });
     });
 
@@ -127,13 +128,13 @@ describe('LinkSpoolModal', () => {
       render(<LinkSpoolModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('No unlinked spools found in Spoolman.')).toBeInTheDocument();
+        expect(screen.getByText('No unlinked spools available')).toBeInTheDocument();
       });
     });
 
     it('does not render when isOpen is false', () => {
       render(<LinkSpoolModal {...defaultProps} isOpen={false} />);
-      expect(screen.queryByText('Link to Spoolman')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /link to spoolman/i })).not.toBeInTheDocument();
     });
   });
 
@@ -160,7 +161,7 @@ describe('LinkSpoolModal', () => {
         expect(screen.getByText('PLA Red')).toBeInTheDocument();
       });
 
-      const linkButton = screen.getByRole('button', { name: /link spool/i });
+      const linkButton = screen.getByRole('button', { name: /link to spoolman/i });
       expect(linkButton).toBeDisabled();
 
       // Select a spool
@@ -182,7 +183,7 @@ describe('LinkSpoolModal', () => {
       fireEvent.click(screen.getByText('PLA Red'));
 
       // Click link button
-      fireEvent.click(screen.getByRole('button', { name: /link spool/i }));
+      fireEvent.click(screen.getByRole('button', { name: /link to spoolman/i }));
 
       await waitFor(() => {
         expect(api.linkSpool).toHaveBeenCalledWith(1, defaultProps.trayUuid);
@@ -197,7 +198,7 @@ describe('LinkSpoolModal', () => {
       });
 
       fireEvent.click(screen.getByText('PLA Red'));
-      fireEvent.click(screen.getByRole('button', { name: /link spool/i }));
+      fireEvent.click(screen.getByRole('button', { name: /link to spoolman/i }));
 
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
@@ -215,7 +216,7 @@ describe('LinkSpoolModal', () => {
       });
 
       fireEvent.click(screen.getByText('PLA Red'));
-      fireEvent.click(screen.getByRole('button', { name: /link spool/i }));
+      fireEvent.click(screen.getByRole('button', { name: /link to spoolman/i }));
 
       await waitFor(() => {
         expect(defaultProps.onClose).toHaveBeenCalled();
@@ -233,7 +234,7 @@ describe('LinkSpoolModal', () => {
       });
 
       fireEvent.click(screen.getByText('PLA Red'));
-      fireEvent.click(screen.getByRole('button', { name: /link spool/i }));
+      fireEvent.click(screen.getByRole('button', { name: /link to spoolman/i }));
 
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
@@ -260,7 +261,7 @@ describe('LinkSpoolModal', () => {
       render(<LinkSpoolModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Link to Spoolman')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /link to spoolman/i })).toBeInTheDocument();
       });
 
       // Click the backdrop (the element with bg-black/60)
@@ -275,7 +276,7 @@ describe('LinkSpoolModal', () => {
       render(<LinkSpoolModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Link to Spoolman')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /link to spoolman/i })).toBeInTheDocument();
       });
 
       // Find and click the X button in the header
