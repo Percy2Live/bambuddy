@@ -340,47 +340,55 @@ async def restore_backup(
         if not backup_db.exists():
             raise HTTPException(400, "Invalid backup: missing bambuddy.db")
 
-        # 3. Stop virtual printer if running (releases file locks)
-        vp_was_enabled = virtual_printer_manager.is_enabled
-        if vp_was_enabled:
-            await virtual_printer_manager.configure(enabled=False)
-
-        # 4. Close current database connections
-        await close_all_connections()
-
-        # 5. Replace database
-        shutil.copy2(backup_db, db_path)
-
-        # 6. Replace data directories
-        dirs_to_restore = [
-            ("archive", base_dir / "archive"),
-            ("virtual_printer", base_dir / "virtual_printer"),
-            ("plate_calibration", app_settings.plate_calibration_dir),
-            ("icons", base_dir / "icons"),
-            ("projects", base_dir / "projects"),
-        ]
-
-        for name, dest_dir in dirs_to_restore:
-            src_dir = temp_path / name
-            if src_dir.exists():
-                if dest_dir.exists():
-                    shutil.rmtree(dest_dir)
-                shutil.copytree(src_dir, dest_dir)
-
-        # 7. Restart virtual printer if it was running before
-        if vp_was_enabled:
+        try:
+            # 3. Stop virtual printer if running (releases file locks)
             try:
-                await virtual_printer_manager.configure(enabled=True)
+                if virtual_printer_manager.is_enabled:
+                    logger.info("Stopping virtual printer for restore...")
+                    await virtual_printer_manager.configure(enabled=False)
             except Exception as e:
-                logger.warning(f"Failed to restart virtual printer after restore: {e}")
+                logger.warning(f"Failed to stop virtual printer: {e}")
 
-        # 8. Note: Database connection will be reinitialized on restart
-        # The application should be restarted after restore
+            # 4. Close current database connections
+            logger.info("Closing database connections...")
+            await close_all_connections()
 
-        return {
-            "success": True,
-            "message": "Backup restored successfully. Please restart Bambuddy for changes to take effect.",
-        }
+            # 5. Replace database
+            logger.info("Restoring database from backup...")
+            shutil.copy2(backup_db, db_path)
+
+            # 6. Replace data directories
+            dirs_to_restore = [
+                ("archive", base_dir / "archive"),
+                ("virtual_printer", base_dir / "virtual_printer"),
+                ("plate_calibration", app_settings.plate_calibration_dir),
+                ("icons", base_dir / "icons"),
+                ("projects", base_dir / "projects"),
+            ]
+
+            for name, dest_dir in dirs_to_restore:
+                src_dir = temp_path / name
+                if src_dir.exists():
+                    logger.info(f"Restoring {name} directory...")
+                    if dest_dir.exists():
+                        shutil.rmtree(dest_dir)
+                    shutil.copytree(src_dir, dest_dir)
+
+            # 7. Note: Virtual printer and database will be reinitialized on restart
+            # Do NOT try to restart services here - the database session is closed
+
+            logger.info("Restore complete - restart required")
+            return {
+                "success": True,
+                "message": "Backup restored successfully. Please restart Bambuddy for changes to take effect.",
+            }
+
+        except Exception as e:
+            logger.error(f"Restore failed: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"Restore failed: {str(e)}"},
+            )
 
 
 @router.get("/virtual-printer/models")

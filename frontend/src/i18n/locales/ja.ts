@@ -1786,7 +1786,7 @@ export default {
     apiKeysDescription: 'Webhook APIキー（インポート時に新しいキーが生成されます）',
     restoreBackup: 'バックアップの復元',
     restoreDescription: 'バックアップファイルからすべてのデータを置き換える',
-    restoreNote: '復元後、仮想プリンターが再起動されます',
+    restoreNote: '復元中、仮想プリンターは停止されます',
   },
 
   // Restore modal
