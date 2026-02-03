@@ -32,6 +32,15 @@ All notable changes to Bambuddy will be documented in this file.
   - Pages translated: Settings, Archives, File Manager, Queue, Printers, Profiles, Projects, Stats, Maintenance, Camera, Groups, Users, Login, Setup, Stream Overlay
   - Components translated: ConfirmModal, LinkSpoolModal, FilamentHoverCard, Layout
   - Added locale parity test to ensure English and German stay in sync
+- **Virtual Printer Proxy Mode**:
+  - New "Proxy" mode allows remote printing over any network by relaying slicer traffic to a real printer
+  - Configure a target printer and Bambuddy acts as a TLS proxy between your slicer and the printer
+  - Supports both FTP (port 9990) and MQTT (port 8883) protocols with full TLS encryption
+  - Slicer connects to Bambuddy using the real printer's access code
+  - Real-time status display showing active FTP/MQTT connections
+  - Target printer selector with validation (must be configured in Bambuddy)
+  - Proxy mode bypasses the access code requirement (uses the real printer's credentials)
+  - Full i18n support for all proxy mode UI strings (English, German, Japanese)
 
 ### Fixed
 - **Cannot Link Multiple HA Entities to Same Printer** (Issue #214):

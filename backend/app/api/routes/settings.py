@@ -368,7 +368,9 @@ async def restore_backup(
 
 
 @router.get("/virtual-printer/models")
-async def get_virtual_printer_models():
+async def get_virtual_printer_models(
+    _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
+):
     """Get available virtual printer models."""
     from backend.app.services.virtual_printer import (
         DEFAULT_VIRTUAL_PRINTER_MODEL,

@@ -364,6 +364,13 @@ class SlicerProxyManager:
 
         logger.info(f"Slicer TLS proxy started for {self.target_host}")
 
+        # Wait for tasks to complete (they run until cancelled)
+        # This keeps the start() coroutine alive so the parent task doesn't complete
+        try:
+            await asyncio.gather(*self._tasks)
+        except asyncio.CancelledError:
+            logger.debug("Slicer proxy start cancelled")
+
     async def stop(self) -> None:
         """Stop all proxies."""
         logger.info("Stopping slicer proxy")

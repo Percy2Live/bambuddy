@@ -121,12 +121,14 @@ describe('API Client Auth Header', () => {
 
 describe('FormData requests include auth header', () => {
   it('importProjectFile includes Authorization header', async () => {
+    // Mock fetch directly for FormData requests (MSW can be flaky with multipart in some environments)
+    const originalFetch = global.fetch;
     let capturedHeaders: Headers | null = null;
 
-    server.use(
-      http.post('/api/v1/projects/import/file', ({ request }) => {
-        capturedHeaders = request.headers;
-        return HttpResponse.json({
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/projects/import/file')) {
+        capturedHeaders = new Headers(init?.headers);
+        return Promise.resolve(new Response(JSON.stringify({
           id: 1,
           name: 'Test Project',
           description: '',
@@ -140,16 +142,21 @@ describe('FormData requests include auth header', () => {
           updated_at: '2026-01-01T00:00:00Z',
           archives: [],
           bom_items: [],
-        });
-      })
-    );
+        }), { status: 200 }));
+      }
+      return originalFetch(url, init);
+    });
 
-    setAuthToken('test-token');
-    const file = new File(['test content'], 'test.zip', { type: 'application/zip' });
-    await api.importProjectFile(file);
+    try {
+      setAuthToken('test-token');
+      const file = new File(['test content'], 'test.zip', { type: 'application/zip' });
+      await api.importProjectFile(file);
 
-    expect(capturedHeaders).not.toBeNull();
-    expect(capturedHeaders!.get('Authorization')).toBe('Bearer test-token');
+      expect(capturedHeaders).not.toBeNull();
+      expect(capturedHeaders!.get('Authorization')).toBe('Bearer test-token');
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 
   it('exportProjectZip includes Authorization header', async () => {
