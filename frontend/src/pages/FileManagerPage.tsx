@@ -2098,7 +2098,7 @@ export function FileManagerPage() {
                     <div className="text-sm text-bambu-gray">{file.print_count > 0 ? `${file.print_count}x` : '-'}</div>
                     {/* Actions */}
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      {selectedFiles.length === 0 && isSlicedFilename(file.filename) && (
+                      {isSlicedFilename(file.filename) && (
                         <>
                           <button
                             onClick={() => hasPermission('printers:control') && setPrintFile(file)}
