@@ -1065,6 +1065,7 @@ async def get_printer_file_plates(
                         "index": idx,
                         "name": plate_name,
                         "objects": objects,
+                        "object_count": len(objects),
                         "has_thumbnail": has_thumbnail,
                         "thumbnail_url": f"/api/v1/printers/{printer_id}/files/plate-thumbnail/{idx}?path={path}",
                         "print_time_seconds": meta.get("prediction"),

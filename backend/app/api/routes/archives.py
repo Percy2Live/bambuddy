@@ -2321,13 +2321,25 @@ async def get_archive_plates(
 
             plate_indices.sort()
 
-            # Parse model_settings.config for plate names
+            # Parse model_settings.config for plate names + object assignments
             # Plate names are stored with plater_id and plater_name keys
             plate_names = {}  # plater_id -> name
+            plate_object_ids: dict[int, list[str]] = {}
+            object_names_by_id: dict[str, str] = {}
             if "Metadata/model_settings.config" in namelist:
                 try:
                     model_content = zf.read("Metadata/model_settings.config").decode()
                     model_root = ET.fromstring(model_content)
+                    # Build object ID -> name map
+                    for obj_elem in model_root.findall(".//object"):
+                        obj_id = obj_elem.get("id")
+                        if not obj_id:
+                            continue
+                        name_meta = obj_elem.find("metadata[@key='name']")
+                        obj_name = name_meta.get("value") if name_meta is not None else None
+                        if obj_name:
+                            object_names_by_id[obj_id] = obj_name
+
                     for plate_elem in model_root.findall(".//plate"):
                         plater_id = None
                         plater_name = None
@@ -2343,6 +2355,17 @@ async def get_archive_plates(
                                 plater_name = value.strip()
                         if plater_id is not None and plater_name:
                             plate_names[plater_id] = plater_name
+
+                        if plater_id is not None:
+                            for instance_elem in plate_elem.findall("model_instance"):
+                                for inst_meta in instance_elem.findall("metadata"):
+                                    if inst_meta.get("key") == "object_id":
+                                        obj_id = inst_meta.get("value")
+                                        if not obj_id:
+                                            continue
+                                        plate_object_ids.setdefault(plater_id, [])
+                                        if obj_id not in plate_object_ids[plater_id]:
+                                            plate_object_ids[plater_id].append(obj_id)
                 except Exception:
                     pass  # model_settings.config parsing is optional
 
@@ -2452,6 +2475,10 @@ async def get_archive_plates(
                 objects = meta.get("objects", [])
                 if not objects:
                     objects = plate_json_objects.get(idx, [])
+                if not objects and plate_object_ids.get(idx):
+                    objects = [
+                        object_names_by_id.get(obj_id, f"Object {obj_id}") for obj_id in plate_object_ids.get(idx, [])
+                    ]
 
                 plate_name = meta.get("name")
                 if not plate_name:
@@ -2464,6 +2491,7 @@ async def get_archive_plates(
                         "index": idx,
                         "name": plate_name,
                         "objects": objects,
+                        "object_count": len(objects),
                         "has_thumbnail": has_thumbnail,
                         "thumbnail_url": f"/api/v1/archives/{archive_id}/plate-thumbnail/{idx}"
                         if has_thumbnail
