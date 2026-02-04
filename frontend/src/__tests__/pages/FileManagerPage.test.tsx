@@ -159,11 +159,11 @@ describe('FileManagerPage', () => {
       });
     });
 
-    it('shows Upload 3MF button', async () => {
+    it('shows Upload button', async () => {
       render(<FileManagerPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload 3MF')).toBeInTheDocument();
+        expect(screen.getByText('Upload')).toBeInTheDocument();
       });
     });
   });
@@ -454,7 +454,7 @@ describe('FileManagerPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No files yet')).toBeInTheDocument();
-        expect(screen.getByText('Upload 3MF Files')).toBeInTheDocument();
+        expect(screen.getByText('Upload Files')).toBeInTheDocument();
       });
     });
   });
@@ -535,36 +535,82 @@ describe('FileManagerPage', () => {
     });
   });
 
-  describe('upload modal 3MF support', () => {
+  describe('upload modal with advanced 3MF support', () => {
     it('opens upload modal', async () => {
       const user = userEvent.setup();
       render(<FileManagerPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload 3MF')).toBeInTheDocument();
+        expect(screen.getByText('Upload')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText('Upload 3MF'));
+      await user.click(screen.getByText('Upload'));
 
       await waitFor(() => {
-        expect(screen.getByText('Upload 3MF Files')).toBeInTheDocument();
+        expect(screen.getByText('Upload Files')).toBeInTheDocument();
         expect(screen.getByText(/Drag & drop/)).toBeInTheDocument();
       });
     });
 
-    it('shows printer model extraction info', async () => {
+    it('shows 3MF extraction info when 3MF file is added', async () => {
       const user = userEvent.setup();
       render(<FileManagerPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload 3MF')).toBeInTheDocument();
+        expect(screen.getByText('Upload')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText('Upload 3MF'));
+      await user.click(screen.getByText('Upload'));
 
       await waitFor(() => {
-        // The shared UploadModal shows info about printer model extraction
-        expect(screen.getByText(/printer model/i)).toBeInTheDocument();
+        expect(screen.getByText('Upload Files')).toBeInTheDocument();
+      });
+
+      // Create a mock 3MF file
+      const threemfFile = new File(['content'], 'model.gcode.3mf', { type: 'application/octet-stream' });
+
+      // Get the hidden file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      expect(fileInput).toBeInTheDocument();
+
+      // Simulate file selection
+      await user.upload(fileInput, threemfFile);
+
+      // 3MF extraction info should appear
+      await waitFor(() => {
+        expect(screen.getByText('3MF files detected')).toBeInTheDocument();
+        expect(screen.getByText(/Printer model.*will be automatically extracted/i)).toBeInTheDocument();
+      });
+    });
+
+    it('shows STL thumbnail option when STL file is added', async () => {
+      const user = userEvent.setup();
+      render(<FileManagerPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Upload')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Upload'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Upload Files')).toBeInTheDocument();
+      });
+
+      // Create a mock STL file
+      const stlFile = new File(['solid test'], 'model.stl', { type: 'application/sla' });
+
+      // Get the hidden file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      expect(fileInput).toBeInTheDocument();
+
+      // Simulate file selection
+      await user.upload(fileInput, stlFile);
+
+      // STL thumbnail option should appear
+      await waitFor(() => {
+        expect(screen.getByText('STL thumbnail generation')).toBeInTheDocument();
+        expect(screen.getByText(/Thumbnails can be generated/i)).toBeInTheDocument();
       });
     });
   });
