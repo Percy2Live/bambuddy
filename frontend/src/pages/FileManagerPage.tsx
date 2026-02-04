@@ -37,6 +37,7 @@ import {
   Pencil,
   Play,
   Image,
+  User,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type {
@@ -963,7 +964,7 @@ function FileCard({ file, isSelected, isMobile, onSelect, onDelete, onDownload, 
           )}
         </div>
         {file.sliced_for_model && (
-          <div className="mt-1 text-xs text-purple-400 flex items-center gap-1">
+          <div className="mt-1 text-xs text-bambu-gray flex items-center gap-1">
             <Printer className="w-3 h-3" />
             {file.sliced_for_model}
           </div>
@@ -974,8 +975,9 @@ function FileCard({ file, isSelected, isMobile, onSelect, onDelete, onDownload, 
           </div>
         )}
         {file.created_by_username && (
-          <div className="mt-1 text-xs text-bambu-gray">
-            {t('fileManager.uploadedBy', { name: file.created_by_username })}
+          <div className="mt-1 text-xs text-bambu-gray flex items-center gap-1">
+            <User className="w-3 h-3" />
+            {file.created_by_username}
           </div>
         )}
       </div>
@@ -1163,6 +1165,7 @@ export function FileManagerPage() {
   // Filter and sort state (persist sort preferences to localStorage)
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterUsername, setFilterUsername] = useState('');
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = localStorage.getItem('library-sort-field');
     return (saved as SortField) || 'name';
@@ -1204,6 +1207,12 @@ export function FileManagerPage() {
     queryFn: () => api.getLibraryStats(),
   });
 
+  // Get users for the username filter autocomplete
+  const { data: users } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.getUsers(),
+  });
+
   // Get unique file types for filter dropdown
   const fileTypes = useMemo(() => {
     if (!files) return [];
@@ -1232,6 +1241,14 @@ export function FileManagerPage() {
       result = result.filter((f) => f.file_type === filterType);
     }
 
+    // Apply username filter
+    if (filterUsername.trim()) {
+      const query = filterUsername.toLowerCase();
+      result = result.filter(
+        (f) => f.created_by_username && f.created_by_username.toLowerCase().includes(query)
+      );
+    }
+
     // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
@@ -1256,7 +1273,7 @@ export function FileManagerPage() {
     });
 
     return result;
-  }, [files, searchQuery, filterType, sortField, sortDirection]);
+  }, [files, searchQuery, filterType, filterUsername, sortField, sortDirection]);
 
   // Check if disk space is low
   const isDiskSpaceLow = useMemo(() => {
@@ -1745,6 +1762,31 @@ export function FileManagerPage() {
                 </select>
               </div>
 
+              {/* Username filter with autocomplete */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={t('fileManager.filterByUser', { defaultValue: 'Filter by user' })}
+                  value={filterUsername}
+                  onChange={(e) => setFilterUsername(e.target.value)}
+                  list="usernames-list"
+                  className="w-32 sm:w-40 px-2 py-1.5 bg-bambu-dark border border-bambu-dark-tertiary rounded text-sm text-white placeholder-bambu-gray focus:outline-none focus:border-bambu-green"
+                />
+                {filterUsername && (
+                  <button
+                    onClick={() => setFilterUsername('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-bambu-gray hover:text-white"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                <datalist id="usernames-list">
+                  {users?.map((user) => (
+                    <option key={user.id} value={user.username} />
+                  ))}
+                </datalist>
+              </div>
+
               {/* Sort */}
               <div className="flex items-center gap-2">
                 <select
@@ -1780,7 +1822,7 @@ export function FileManagerPage() {
               </div>
 
               {/* Results count */}
-              {(searchQuery || filterType !== 'all') && (
+              {(searchQuery || filterType !== 'all' || filterUsername) && (
                 <span className="text-sm text-bambu-gray hidden sm:inline">
                   {t('fileManager.resultsCount', { showing: filteredAndSortedFiles.length, total: files.length })}
                 </span>
@@ -1960,19 +2002,20 @@ export function FileManagerPage() {
             <div className="flex-1 lg:overflow-y-auto">
               <div className="bg-bambu-card rounded-lg border border-bambu-dark-tertiary overflow-hidden">
                 {/* List header - hidden on mobile, show simplified on small screens */}
-                <div className="hidden sm:grid grid-cols-[auto_1fr_100px_100px_100px_80px] gap-4 px-4 py-2 bg-bambu-dark-secondary border-b border-bambu-dark-tertiary text-xs text-bambu-gray font-medium">
+                <div className="hidden sm:grid grid-cols-[auto_1fr_100px_100px_100px_120px_80px] gap-4 px-4 py-2 bg-bambu-dark-secondary border-b border-bambu-dark-tertiary text-xs text-bambu-gray font-medium">
                   <div className="w-6" />
                   <div>{t('common.name')}</div>
                   <div>{t('common.type')}</div>
                   <div>{t('fileManager.size')}</div>
                   <div>{t('fileManager.prints')}</div>
+                  <div>{t('fileManager.uploadedBy', { defaultValue: 'Uploaded By' })}</div>
                   <div />
                 </div>
                 {/* List rows */}
                 {filteredAndSortedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className={`grid grid-cols-[auto_1fr_100px_100px_100px_80px] gap-4 px-4 py-3 items-center border-b border-bambu-dark-tertiary last:border-b-0 cursor-pointer hover:bg-bambu-dark/50 transition-colors ${
+                    className={`grid grid-cols-[auto_1fr_100px_100px_100px_120px_80px] gap-4 px-4 py-3 items-center border-b border-bambu-dark-tertiary last:border-b-0 cursor-pointer hover:bg-bambu-dark/50 transition-colors ${
                       selectedFiles.includes(file.id) ? 'bg-bambu-green/10' : ''
                     }`}
                     onClick={() => handleFileSelect(file.id)}
@@ -2033,6 +2076,17 @@ export function FileManagerPage() {
                     <div className="text-sm text-bambu-gray">{formatFileSize(file.file_size)}</div>
                     {/* Prints */}
                     <div className="text-sm text-bambu-gray">{file.print_count > 0 ? `${file.print_count}x` : '-'}</div>
+                    {/* Uploaded By */}
+                    <div className="text-sm text-bambu-gray flex items-center gap-1">
+                      {file.created_by_username ? (
+                        <>
+                          <User className="w-3 h-3" />
+                          <span className="truncate">{file.created_by_username}</span>
+                        </>
+                      ) : (
+                        '-'
+                      )}
+                    </div>
                     {/* Actions */}
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {isSlicedFilename(file.filename) && (
