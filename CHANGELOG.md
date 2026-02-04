@@ -11,6 +11,10 @@ All notable changes to Bambuddy will be documented in this file.
   - The `filament_used_grams` field already contains the total for the entire print job
   - Removed incorrect `* quantity` multiplication from archive stats, Prometheus metrics, and FilamentTrends chart
   - Example: A print with 26 objects using 126g was incorrectly shown as 3,276g
+- **Print Queue Status Does Not Match Printer Status** (Issue #249):
+  - Queue now shows "Paused" when the printer is paused instead of "Printing"
+  - Fetches real-time printer state for actively printing queue items
+  - Added translations for paused status in English, German, and Japanese
 
 ### Added
 - **Windows Portable Launcher** (contributed by nmori):

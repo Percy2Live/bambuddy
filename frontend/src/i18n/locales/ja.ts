@@ -549,6 +549,7 @@ export default {
     status: {
       pending: '待機中',
       printing: '印刷中',
+      paused: '一時停止',
       completed: '完了',
       failed: '失敗',
       skipped: 'スキップ',

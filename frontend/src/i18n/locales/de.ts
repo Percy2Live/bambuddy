@@ -687,6 +687,7 @@ export default {
       pending: 'Ausstehend',
       waiting: 'Wartend',
       printing: 'Druckt',
+      paused: 'Pausiert',
       completed: 'Abgeschlossen',
       failed: 'Fehlgeschlagen',
       skipped: 'Übersprungen',
