@@ -1835,6 +1835,9 @@ export function FileManagerPage() {
                       <Button
                         variant={selectedSlicedFiles.length === 1 ? 'secondary' : 'primary'}
                         size="sm"
+                        // Note: Schedule dialog (PrintModal) is designed for single file at a time
+                        // but supports scheduling to multiple printers. This provides more control
+                        // over scheduling options compared to the previous bulk queue mutation.
                         onClick={() => setScheduleFile(selectedSlicedFiles[0])}
                         disabled={!hasPermission('queue:create')}
                         title={!hasPermission('queue:create') ? t('fileManager.noPermissionAddToQueue') : undefined}
