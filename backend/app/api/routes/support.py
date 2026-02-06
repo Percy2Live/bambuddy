@@ -30,10 +30,6 @@ from backend.app.models.user import User
 router = APIRouter(prefix="/support", tags=["support"])
 logger = logging.getLogger(__name__)
 
-# In-memory state for debug logging (persisted to settings DB)
-_debug_logging_enabled = False
-_debug_logging_enabled_at: datetime | None = None
-
 
 class DebugLoggingState(BaseModel):
     enabled: bool
@@ -59,7 +55,7 @@ async def _get_debug_setting(db: AsyncSession) -> tuple[bool, datetime | None]:
         try:
             enabled_at = datetime.fromisoformat(enabled_at_setting.value)
         except ValueError:
-            pass
+            pass  # Ignore malformed timestamp; enabled_at stays None
 
     return enabled, enabled_at
 
@@ -106,7 +102,7 @@ def _apply_log_level(debug: bool):
         logging.getLogger("httpcore").setLevel(logging.WARNING)
         logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    logger.info(f"Log level changed to {'DEBUG' if debug else 'INFO'}")
+    logger.info("Log level changed to %s", "DEBUG" if debug else "INFO")
 
 
 @router.get("/debug-logging", response_model=DebugLoggingState)
@@ -114,12 +110,8 @@ async def get_debug_logging_state(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
 ):
     """Get current debug logging state."""
-    global _debug_logging_enabled, _debug_logging_enabled_at
-
     async with async_session() as db:
         enabled, enabled_at = await _get_debug_setting(db)
-        _debug_logging_enabled = enabled
-        _debug_logging_enabled_at = enabled_at
 
     duration = None
     if enabled and enabled_at:
@@ -138,12 +130,8 @@ async def toggle_debug_logging(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_UPDATE),
 ):
     """Enable or disable debug logging."""
-    global _debug_logging_enabled, _debug_logging_enabled_at
-
     async with async_session() as db:
         enabled_at = await _set_debug_setting(db, toggle.enabled)
-        _debug_logging_enabled = toggle.enabled
-        _debug_logging_enabled_at = enabled_at
 
     _apply_log_level(toggle.enabled)
 
@@ -269,7 +257,7 @@ def _read_log_entries(
                     entries.append(current_entry)
 
     except Exception as e:
-        logger.error(f"Error reading log file: {e}")
+        logger.error("Error reading log file: %s", e)
         return [], 0
 
     # Entries are already in newest-first order
@@ -308,7 +296,7 @@ async def clear_logs(
             logger.info("Log file cleared by user")
             return {"message": "Logs cleared successfully"}
         except Exception as e:
-            logger.error(f"Error clearing log file: {e}", exc_info=True)
+            logger.error("Error clearing log file: %s", e, exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to clear logs. Check server logs for details.")
 
     return {"message": "Log file does not exist"}
@@ -413,8 +401,6 @@ async def _collect_support_info() -> dict:
 
 def _sanitize_log_content(content: str) -> str:
     """Remove sensitive data from log content."""
-    import re
-
     # Replace IP addresses with [IP]
     content = re.sub(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP]", content)
 
@@ -460,13 +446,9 @@ async def generate_support_bundle(
     _: User | None = RequirePermissionIfAuthEnabled(Permission.SETTINGS_READ),
 ):
     """Generate a support bundle ZIP file for issue reporting."""
-    global _debug_logging_enabled, _debug_logging_enabled_at
-
     # Check if debug logging is enabled
     async with async_session() as db:
-        enabled, enabled_at = await _get_debug_setting(db)
-        _debug_logging_enabled = enabled
-        _debug_logging_enabled_at = enabled_at
+        enabled, _enabled_at = await _get_debug_setting(db)
 
     if not enabled:
         raise HTTPException(
@@ -493,7 +475,7 @@ async def generate_support_bundle(
     zip_buffer.seek(0)
 
     filename = f"bambuddy-support-{timestamp}.zip"
-    logger.info(f"Generated support bundle: {filename}")
+    logger.info("Generated support bundle: %s", filename)
 
     return StreamingResponse(
         zip_buffer, media_type="application/zip", headers={"Content-Disposition": f"attachment; filename={filename}"}
@@ -502,16 +484,12 @@ async def generate_support_bundle(
 
 async def init_debug_logging():
     """Initialize debug logging state from database on startup."""
-    global _debug_logging_enabled, _debug_logging_enabled_at
-
     try:
         async with async_session() as db:
-            enabled, enabled_at = await _get_debug_setting(db)
-            _debug_logging_enabled = enabled
-            _debug_logging_enabled_at = enabled_at
+            enabled, _ = await _get_debug_setting(db)
 
             if enabled:
                 _apply_log_level(True)
                 logger.info("Debug logging restored from previous session")
     except Exception as e:
-        logger.warning(f"Could not restore debug logging state: {e}")
+        logger.warning("Could not restore debug logging state: %s", e)

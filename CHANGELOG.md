@@ -3,7 +3,7 @@
 All notable changes to Bambuddy will be documented in this file.
 
 
-## [0.1.8] - Not released
+## [0.1.8] - 2026-02-06
 
 ### Security
 - **XML External Entity (XXE) Prevention**:
@@ -21,8 +21,37 @@ All notable changes to Bambuddy will be documented in this file.
   - Added pip-audit and npm-audit for dependency vulnerability scanning
   - Automatic GitHub issue creation for detected vulnerabilities
   - Security scan results visible in GitHub Security tab
+- **CodeQL Zero-Finding Baseline**:
+  - Reduced CodeQL findings from 591 to 0 across Python, JavaScript, and GitHub Actions
+  - Created custom query suites (`.codeql/python-bambuddy.qls`, `.codeql/javascript-bambuddy.qls`) with documented accepted-risk exclusions
+  - All exclusions reviewed and justified (log injection parameterized, cyclic imports from SQLAlchemy ORM, intentional 0.0.0.0 binds, etc.)
+- **Log Injection Prevention**:
+  - Converted ~700 f-string log calls to parameterized `%s` style across all backend files
+  - Prevents log injection via newlines or fake log entries in user-controlled data
+- **Exception Handling Hardened**:
+  - Narrowed ~265 bare `except Exception` blocks to specific types (`OSError`, `KeyError`, `ValueError`, `zipfile.BadZipFile`, `sqlalchemy.exc.OperationalError`, etc.)
+- **Stack Trace Exposure Fixed**:
+  - Replaced `str(e)` with generic error messages in HTTP responses (`updates.py`)
+  - Detailed errors still logged server-side for debugging
+- **SSRF Mitigations Added**:
+  - Home Assistant integration: URL scheme/hostname validation, metadata-service blocking (`homeassistant.py`)
+  - Tasmota integration: IP validation blocking loopback and link-local addresses (`tasmota.py`)
+- **Hashlib Security Annotations**:
+  - Added `usedforsecurity=False` to non-security hash calls (MD5 for AMS fingerprinting, SHA1 for git blob format)
+- **Unused Code Removal**:
+  - Removed ~30 redundant function-level imports, unused variables, dead code, and trivial conditions flagged by CodeQL
+- **Local Security Scanner Improvements**:
+  - `test_security.sh` uses `--threads=0` for all CodeQL commands (auto-detects CPU cores)
+  - Added `.trivyignore` to suppress accepted Dockerfile USER directive finding
 
-### Enhanced
+### Enhancements
+- **Per-Filament Spoolman Usage Tracking** (PR #277):
+  - Reports exact filament consumption per spool to Spoolman after each print
+  - Parses G-code from 3MF files for layer-by-layer extrusion data (multi-material support)
+  - New setting: "Disable AMS Estimated Weight Sync" to prefer Spoolman usage tracking over AMS weight estimates
+  - New setting: "Report Partial Usage for Failed Prints" estimates filament used up to the failure point based on layer progress
+  - Persists tracking data in SQLite for reliability across restarts
+  - Extracted Spoolman tracking into dedicated service module with DRY helpers
 - **3D Model Viewer Improvements** (PR #262):
   - Added plate selector for multi-plate 3MF files with thumbnail previews
   - Object count display shows number of objects per plate and total

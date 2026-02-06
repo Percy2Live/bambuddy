@@ -87,21 +87,6 @@ async def setup_auth(request: SetupRequest, db: AsyncSession = Depends(get_db)):
     logger = logging.getLogger(__name__)
 
     try:
-        # Check if auth is already configured (prevent re-setup)
-        result = await db.execute(select(Settings).where(Settings.key == "auth_enabled"))
-        _existing_setting = result.scalar_one_or_none()
-
-        # Check if users exist
-        user_count_result = await db.execute(select(User))
-        _user_count = len(user_count_result.scalars().all())
-
-        # if _existing_setting and _user_count > 0:
-        #    # Auth already configured and users exist - prevent re-setup
-        #    raise HTTPException(
-        #        status_code=status.HTTP_400_BAD_REQUEST,
-        #        detail="Authentication is already configured. Use user management to modify users.",
-        #    )
-
         # If auth_enabled is true but no users exist, allow re-setup (recovery scenario)
 
         admin_created = False
@@ -136,7 +121,7 @@ async def setup_auth(request: SetupRequest, db: AsyncSession = Depends(get_db)):
 
                 # Create admin user FIRST (before enabling auth)
                 try:
-                    logger.info(f"Creating admin user: {request.admin_username}")
+                    logger.info("Creating admin user: %s", request.admin_username)
                     admin_user = User(
                         username=request.admin_username,
                         password_hash=get_password_hash(request.admin_password),
@@ -152,11 +137,11 @@ async def setup_auth(request: SetupRequest, db: AsyncSession = Depends(get_db)):
                         logger.info("Added new admin user to Administrators group")
 
                     db.add(admin_user)
-                    logger.info(f"Admin user added to session: {request.admin_username}")
+                    logger.info("Admin user added to session: %s", request.admin_username)
                     admin_created = True
                 except Exception as e:
                     await db.rollback()
-                    logger.error(f"Failed to create admin user: {e}", exc_info=True)
+                    logger.error("Failed to create admin user: %s", e, exc_info=True)
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail=f"Failed to create admin user: {str(e)}",
@@ -169,14 +154,14 @@ async def setup_auth(request: SetupRequest, db: AsyncSession = Depends(get_db)):
 
         if admin_created:
             await db.refresh(admin_user)
-            logger.info(f"Admin user created successfully: {admin_user.id}")
+            logger.info("Admin user created successfully: %s", admin_user.id)
 
-        logger.info(f"Setup completed: auth_enabled={request.auth_enabled}, admin_created={admin_created}")
+        logger.info("Setup completed: auth_enabled=%s, admin_created=%s", request.auth_enabled, admin_created)
         return SetupResponse(auth_enabled=request.auth_enabled, admin_created=admin_created)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Setup error: {e}", exc_info=True)
+        logger.error("Setup error: %s", e, exc_info=True)
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -218,11 +203,11 @@ async def disable_auth(
     try:
         await set_auth_enabled(db, False)
         await db.commit()
-        logger.info(f"Authentication disabled by admin user: {user.username}")
+        logger.info("Authentication disabled by admin user: %s", user.username)
         return {"message": "Authentication disabled successfully", "auth_enabled": False}
     except Exception as e:
         await db.rollback()
-        logger.error(f"Failed to disable authentication: {e}", exc_info=True)
+        logger.error("Failed to disable authentication: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to disable authentication: {str(e)}",

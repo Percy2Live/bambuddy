@@ -43,7 +43,7 @@ class TimelapseProcessor:
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
-            logger.error(f"ffprobe failed: {stderr.decode()}")
+            logger.error("ffprobe failed: %s", stderr.decode())
             raise RuntimeError(f"ffprobe failed: {stderr.decode()}")
 
         data = json.loads(stdout.decode())
@@ -66,7 +66,7 @@ class TimelapseProcessor:
             else:
                 fps = float(r_frame_rate)
         except (ValueError, ZeroDivisionError):
-            pass
+            pass  # Keep default fps if frame rate string is unparseable
 
         return {
             "duration": float(data.get("format", {}).get("duration", 0)),
@@ -218,7 +218,7 @@ class TimelapseProcessor:
             ]
         )
 
-        logger.info(f"Processing timelapse: {' '.join(cmd)}")
+        logger.info("Processing timelapse: %s", " ".join(cmd))
 
         # Run FFmpeg
         process = await asyncio.create_subprocess_exec(
@@ -230,7 +230,7 @@ class TimelapseProcessor:
         _, stderr = await process.communicate()
 
         if process.returncode != 0:
-            logger.error(f"FFmpeg processing failed: {stderr.decode()}")
+            logger.error("FFmpeg processing failed: %s", stderr.decode())
             return False
 
         return output_path.exists()
@@ -258,7 +258,8 @@ class TimelapseProcessor:
             remaining_speed *= 2.0
 
         # Add final atempo for remaining adjustment
-        if 0.5 <= remaining_speed <= 2.0 and remaining_speed != 1.0:
+        # After the while loops above, remaining_speed is guaranteed to be in [0.5, 2.0]
+        if remaining_speed != 1.0:
             filters.append(f"atempo={remaining_speed:.4f}")
 
         return ",".join(filters)

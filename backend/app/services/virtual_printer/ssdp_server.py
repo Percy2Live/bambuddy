@@ -61,7 +61,7 @@ class VirtualPrinterSSDPServer:
             s.close()
             self._local_ip = ip
             return ip
-        except Exception:
+        except OSError:
             return "127.0.0.1"
 
     def _build_notify_message(self) -> bytes:
@@ -128,7 +128,7 @@ class VirtualPrinterSSDPServer:
         if self._running:
             return
 
-        logger.info(f"Starting virtual printer SSDP server: {self.name} ({self.serial})")
+        logger.info("Starting virtual printer SSDP server: %s (%s)", self.name, self.serial)
         self._running = True
 
         try:
@@ -140,7 +140,7 @@ class VirtualPrinterSSDPServer:
             try:
                 self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             except (AttributeError, OSError):
-                pass
+                pass  # SO_REUSEPORT not available on all platforms; non-critical
 
             # Set non-blocking mode
             self._socket.setblocking(False)
@@ -159,8 +159,8 @@ class VirtualPrinterSSDPServer:
             self._socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
             local_ip = self._get_local_ip()
-            logger.info(f"SSDP server listening on port {SSDP_PORT}, advertising IP: {local_ip}")
-            logger.info(f"Virtual printer: {self.name} ({self.serial}) model={self.model}")
+            logger.info("SSDP server listening on port %s, advertising IP: %s", SSDP_PORT, local_ip)
+            logger.info("Virtual printer: %s (%s) model=%s", self.name, self.serial, self.model)
 
             # Send initial NOTIFY
             await self._send_notify()
@@ -177,10 +177,10 @@ class VirtualPrinterSSDPServer:
                     message = data.decode("utf-8", errors="ignore")
                     await self._handle_message(message, addr)
                 except BlockingIOError:
-                    pass
-                except Exception as e:
+                    pass  # No data available on non-blocking socket; will retry
+                except OSError as e:
                     if self._running:
-                        logger.debug(f"SSDP receive error: {e}")
+                        logger.debug("SSDP receive error: %s", e)
 
                 # Send periodic NOTIFY
                 now = asyncio.get_event_loop().time()
@@ -192,13 +192,13 @@ class VirtualPrinterSSDPServer:
 
         except OSError as e:
             if e.errno == 98:  # Address already in use
-                logger.warning(f"SSDP port {SSDP_PORT} in use - real printers may be running")
+                logger.warning("SSDP port %s in use - real printers may be running", SSDP_PORT)
             else:
-                logger.error(f"SSDP server error: {e}")
+                logger.error("SSDP server error: %s", e)
         except asyncio.CancelledError:
             logger.debug("SSDP server cancelled")
         except Exception as e:
-            logger.error(f"SSDP server error: {e}")
+            logger.error("SSDP server error: %s", e)
         finally:
             await self._cleanup()
 
@@ -214,13 +214,13 @@ class VirtualPrinterSSDPServer:
             try:
                 # Send byebye message
                 await self._send_byebye()
-            except Exception:
-                pass
+            except OSError:
+                pass  # Best-effort byebye broadcast; socket may already be closed
 
             try:
                 self._socket.close()
-            except Exception:
-                pass
+            except OSError:
+                pass  # Best-effort socket close; may already be released
             self._socket = None
 
     async def _send_notify(self) -> None:
@@ -232,9 +232,9 @@ class VirtualPrinterSSDPServer:
             msg = self._build_notify_message()
             # Real Bambu printers broadcast to 255.255.255.255, not multicast
             self._socket.sendto(msg, (SSDP_BROADCAST_ADDR, SSDP_PORT))
-            logger.debug(f"Sent SSDP NOTIFY for {self.name}")
-        except Exception as e:
-            logger.debug(f"Failed to send NOTIFY: {e}")
+            logger.debug("Sent SSDP NOTIFY for %s", self.name)
+        except OSError as e:
+            logger.debug("Failed to send NOTIFY: %s", e)
 
     async def _send_byebye(self) -> None:
         """Send SSDP byebye message when shutting down."""
@@ -253,8 +253,8 @@ class VirtualPrinterSSDPServer:
         try:
             self._socket.sendto(message.encode(), (SSDP_BROADCAST_ADDR, SSDP_PORT))
             logger.debug("Sent SSDP byebye")
-        except Exception:
-            pass
+        except OSError:
+            pass  # Best-effort byebye send; network may be unavailable during shutdown
 
     async def _handle_message(self, message: str, addr: tuple[str, int]) -> None:
         """Handle incoming SSDP message.
@@ -271,16 +271,16 @@ class VirtualPrinterSSDPServer:
         if BAMBU_SEARCH_TARGET not in message and "ssdp:all" not in message.lower():
             return
 
-        logger.debug(f"Received M-SEARCH from {addr[0]}")
+        logger.debug("Received M-SEARCH from %s", addr[0])
 
         # Send response
         if self._socket:
             try:
                 response = self._build_response_message()
                 self._socket.sendto(response, addr)
-                logger.info(f"Sent SSDP response to {addr[0]} for virtual printer '{self.name}'")
-            except Exception as e:
-                logger.debug(f"Failed to send SSDP response: {e}")
+                logger.info("Sent SSDP response to %s for virtual printer '%s'", addr[0], self.name)
+            except OSError as e:
+                logger.debug("Failed to send SSDP response: %s", e)
 
 
 class SSDPProxy:
@@ -325,7 +325,7 @@ class SSDPProxy:
                     key, value = line.split(":", 1)
                     headers[key.strip().lower()] = value.strip()
         except Exception:
-            pass
+            pass  # Return partial headers if parsing fails; malformed packets are common
         return headers
 
     def _rewrite_ssdp_location(self, data: bytes) -> bytes:
@@ -341,13 +341,13 @@ class SSDPProxy:
                 flags=re.IGNORECASE,
             )
             if text != original:
-                logger.debug(f"Rewrote SSDP Location to {self.remote_interface_ip}")
-                logger.debug(f"Rewritten SSDP packet:\n{text}")
+                logger.debug("Rewrote SSDP Location to %s", self.remote_interface_ip)
+                logger.debug("Rewritten SSDP packet:\n%s", text)
             else:
-                logger.warning(f"SSDP Location rewrite had no effect. Packet:\n{original}")
+                logger.warning("SSDP Location rewrite had no effect. Packet:\n%s", original)
             return text.encode("utf-8")
         except Exception as e:
-            logger.error(f"Failed to rewrite SSDP: {e}")
+            logger.error("Failed to rewrite SSDP: %s", e)
             return data
 
     async def start(self) -> None:
@@ -371,7 +371,7 @@ class SSDPProxy:
             try:
                 self._local_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             except (AttributeError, OSError):
-                pass
+                pass  # SO_REUSEPORT not available on all platforms; non-critical
             self._local_socket.setblocking(False)
             # Bind to all interfaces to receive broadcasts
             self._local_socket.bind(("", SSDP_PORT))
@@ -391,14 +391,16 @@ class SSDPProxy:
             try:
                 self._remote_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             except (AttributeError, OSError):
-                pass
+                pass  # SO_REUSEPORT not available on all platforms; non-critical
             self._remote_socket.setblocking(False)
             # Bind to remote interface
             self._remote_socket.bind((self.remote_interface_ip, 0))
             self._remote_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-            logger.info(f"SSDP proxy listening on 0.0.0.0:{SSDP_PORT} (filtering for printer {self.target_printer_ip})")
-            logger.info(f"SSDP proxy will broadcast on {self.remote_interface_ip}")
+            logger.info(
+                "SSDP proxy listening on 0.0.0.0:%s (filtering for printer %s)", SSDP_PORT, self.target_printer_ip
+            )
+            logger.info("SSDP proxy will broadcast on %s", self.remote_interface_ip)
 
             # Main loop
             last_broadcast = 0.0
@@ -410,10 +412,10 @@ class SSDPProxy:
                     data, addr = self._local_socket.recvfrom(4096)
                     await self._handle_local_packet(data, addr)
                 except BlockingIOError:
-                    pass
-                except Exception as e:
+                    pass  # No data available on non-blocking socket; will retry
+                except OSError as e:
                     if self._running:
-                        logger.debug(f"SSDP proxy receive error: {e}")
+                        logger.debug("SSDP proxy receive error: %s", e)
 
                 # Listen for M-SEARCH from slicer on LAN B (via remote socket would need separate bind)
                 # For now, we periodically re-broadcast cached printer SSDP
@@ -425,11 +427,11 @@ class SSDPProxy:
                 await asyncio.sleep(0.1)
 
         except OSError as e:
-            logger.error(f"SSDP proxy error: {e}")
+            logger.error("SSDP proxy error: %s", e)
         except asyncio.CancelledError:
             logger.debug("SSDP proxy cancelled")
         except Exception as e:
-            logger.error(f"SSDP proxy error: {e}")
+            logger.error("SSDP proxy error: %s", e)
         finally:
             await self._cleanup()
 
@@ -445,8 +447,8 @@ class SSDPProxy:
             if sock:
                 try:
                     sock.close()
-                except Exception:
-                    pass
+                except OSError:
+                    pass  # Best-effort socket close; may already be released
         self._local_socket = None
         self._remote_socket = None
 
@@ -470,7 +472,7 @@ class SSDPProxy:
         headers = self._parse_ssdp_message(data)
         if headers:
             self._printer_info = headers
-            logger.debug(f"Received SSDP from printer {sender_ip}: {headers.get('devname.bambu.com', 'unknown')}")
+            logger.debug("Received SSDP from printer %s: %s", sender_ip, headers.get("devname.bambu.com", "unknown"))
 
         # Store and immediately broadcast
         self._last_printer_ssdp = data
@@ -490,6 +492,6 @@ class SSDPProxy:
             self._remote_socket.sendto(rewritten, (SSDP_BROADCAST_ADDR, SSDP_PORT))
 
             printer_name = self._printer_info.get("devname.bambu.com", "unknown")
-            logger.debug(f"Broadcast SSDP for '{printer_name}' on LAN B ({self.remote_interface_ip})")
-        except Exception as e:
-            logger.debug(f"Failed to broadcast SSDP on remote: {e}")
+            logger.debug("Broadcast SSDP for '%s' on LAN B (%s)", printer_name, self.remote_interface_ip)
+        except OSError as e:
+            logger.debug("Failed to broadcast SSDP on remote: %s", e)

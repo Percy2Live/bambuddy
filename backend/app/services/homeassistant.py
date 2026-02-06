@@ -2,6 +2,7 @@
 
 import logging
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import httpx
 
@@ -64,29 +65,29 @@ class HomeAssistantService:
                     "reachable": True,
                     "device_name": data.get("attributes", {}).get("friendly_name"),
                 }
-        except Exception as e:
-            logger.warning(f"Failed to get HA entity state for {plug.ha_entity_id}: {e}")
+        except (httpx.HTTPError, OSError, KeyError) as e:
+            logger.warning("Failed to get HA entity state for %s: %s", plug.ha_entity_id, e)
             return {"state": None, "reachable": False, "device_name": None}
 
     async def turn_on(self, plug: "SmartPlug") -> bool:
         """Turn on HA entity. Returns True if successful."""
         success = await self._call_service(plug, "turn_on")
         if success:
-            logger.info(f"Turned ON HA entity '{plug.name}' ({plug.ha_entity_id})")
+            logger.info("Turned ON HA entity '%s' (%s)", plug.name, plug.ha_entity_id)
         return success
 
     async def turn_off(self, plug: "SmartPlug") -> bool:
         """Turn off HA entity. Returns True if successful."""
         success = await self._call_service(plug, "turn_off")
         if success:
-            logger.info(f"Turned OFF HA entity '{plug.name}' ({plug.ha_entity_id})")
+            logger.info("Turned OFF HA entity '%s' (%s)", plug.name, plug.ha_entity_id)
         return success
 
     async def toggle(self, plug: "SmartPlug") -> bool:
         """Toggle HA entity. Returns True if successful."""
         success = await self._call_service(plug, "toggle")
         if success:
-            logger.info(f"Toggled HA entity '{plug.name}' ({plug.ha_entity_id})")
+            logger.info("Toggled HA entity '%s' (%s)", plug.name, plug.ha_entity_id)
         return success
 
     async def _call_service(self, plug: "SmartPlug", action: str) -> bool:
@@ -105,8 +106,8 @@ class HomeAssistantService:
                 )
                 response.raise_for_status()
                 return True
-        except Exception as e:
-            logger.warning(f"Failed to {action} HA entity {plug.ha_entity_id}: {e}")
+        except (httpx.HTTPError, OSError) as e:
+            logger.warning("Failed to %s HA entity %s: %s", action, plug.ha_entity_id, e)
             return False
 
     async def get_energy(self, plug: "SmartPlug") -> dict | None:
@@ -165,7 +166,8 @@ class HomeAssistantService:
                     "apparent_power": None,
                     "reactive_power": None,
                 }
-        except Exception:
+        except (httpx.HTTPError, OSError, KeyError, ValueError) as e:
+            logger.debug("Failed to get HA energy data: %s", e)
             return None
 
     async def _get_sensor_value(self, client: httpx.AsyncClient, entity_id: str) -> float | None:
@@ -179,9 +181,23 @@ class HomeAssistantService:
             state = response.json().get("state")
             if state and state not in ("unknown", "unavailable"):
                 return float(state)
-        except Exception:
-            pass
+        except (httpx.HTTPError, OSError, ValueError):
+            pass  # Sensor read is best-effort; caller handles None
         return None
+
+    @staticmethod
+    def _validate_url(url: str) -> str | None:
+        """Validate HA URL scheme and block dangerous destinations."""
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            return None
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return None
+        blocked = ("169.254.169.254", "metadata.google.internal", "0.0.0.0")  # nosec B104
+        if parsed.hostname.lower() in blocked or (parsed.hostname or "").startswith("169.254."):
+            return None
+        return f"{parsed.scheme}://{parsed.hostname}" + (f":{parsed.port}" if parsed.port else "") + (parsed.path or "")
 
     async def test_connection(self, url: str, token: str) -> dict:
         """Test connection to Home Assistant.
@@ -191,10 +207,13 @@ class HomeAssistantService:
             - message: str or None (HA message on success)
             - error: str or None (error message on failure)
         """
+        safe_url = self._validate_url(url)
+        if not safe_url:
+            return {"success": False, "message": None, "error": "Invalid Home Assistant URL"}
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    f"{url.rstrip('/')}/api/",
+                    f"{safe_url.rstrip('/')}/api/",
                     headers={"Authorization": f"Bearer {token}"},
                 )
                 response.raise_for_status()
@@ -265,8 +284,8 @@ class HomeAssistantService:
                     )
 
                 return sorted(entities, key=lambda x: x["friendly_name"].lower())
-        except Exception as e:
-            logger.warning(f"Failed to list HA entities: {e}")
+        except (httpx.HTTPError, OSError, KeyError) as e:
+            logger.warning("Failed to list HA entities: %s", e)
             return []
 
     async def list_sensor_entities(self, url: str, token: str) -> list[dict]:
@@ -311,8 +330,8 @@ class HomeAssistantService:
                         )
 
                 return sorted(entities, key=lambda x: x["friendly_name"].lower())
-        except Exception as e:
-            logger.warning(f"Failed to list HA sensor entities: {e}")
+        except (httpx.HTTPError, OSError, KeyError) as e:
+            logger.warning("Failed to list HA sensor entities: %s", e)
             return []
 
 

@@ -1,5 +1,6 @@
 """Service for communicating with Tasmota devices via HTTP API."""
 
+import ipaddress
 import logging
 from typing import TYPE_CHECKING
 
@@ -32,6 +33,15 @@ class TasmotaService:
             return f"http://{username}:{password}@{ip}/cm?cmnd={cmd}"
         return f"http://{ip}/cm?cmnd={cmd}"
 
+    @staticmethod
+    def _validate_ip(ip: str) -> bool:
+        """Block cloud metadata and link-local IPs."""
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return False  # Not a valid IP
+        return not addr.is_loopback and not addr.is_link_local
+
     async def _send_command(
         self,
         ip: str,
@@ -40,6 +50,9 @@ class TasmotaService:
         password: str | None = None,
     ) -> dict | None:
         """Send a command to a Tasmota device and return the response."""
+        if not self._validate_ip(ip):
+            logger.warning("Blocked Tasmota request to invalid IP: %s", ip)
+            return None
         url = self._build_url(ip, command, username, password)
 
         try:
@@ -48,16 +61,16 @@ class TasmotaService:
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
-            logger.warning(f"Tasmota device at {ip} timed out")
+            logger.warning("Tasmota device at %s timed out", ip)
             return None
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Tasmota device at {ip} returned error: {e}")
+            logger.warning("Tasmota device at %s returned error: %s", ip, e)
             return None
         except httpx.RequestError as e:
-            logger.warning(f"Failed to connect to Tasmota device at {ip}: {e}")
+            logger.warning("Failed to connect to Tasmota device at %s: %s", ip, e)
             return None
         except Exception as e:
-            logger.error(f"Unexpected error communicating with Tasmota at {ip}: {e}")
+            logger.error("Unexpected error communicating with Tasmota at %s: %s", ip, e)
             return None
 
     async def get_status(self, plug: "SmartPlug") -> dict:
@@ -95,9 +108,9 @@ class TasmotaService:
         success = state == "ON"
 
         if success:
-            logger.info(f"Turned ON smart plug '{plug.name}' at {plug.ip_address}")
+            logger.info("Turned ON smart plug '%s' at %s", plug.name, plug.ip_address)
         else:
-            logger.warning(f"Failed to turn ON smart plug '{plug.name}' at {plug.ip_address}")
+            logger.warning("Failed to turn ON smart plug '%s' at %s", plug.name, plug.ip_address)
 
         return success
 
@@ -113,9 +126,9 @@ class TasmotaService:
         success = state == "OFF"
 
         if success:
-            logger.info(f"Turned OFF smart plug '{plug.name}' at {plug.ip_address}")
+            logger.info("Turned OFF smart plug '%s' at %s", plug.name, plug.ip_address)
         else:
-            logger.warning(f"Failed to turn OFF smart plug '{plug.name}' at {plug.ip_address}")
+            logger.warning("Failed to turn OFF smart plug '%s' at %s", plug.name, plug.ip_address)
 
         return success
 
@@ -130,7 +143,7 @@ class TasmotaService:
         success = state in ["ON", "OFF"]
 
         if success:
-            logger.info(f"Toggled smart plug '{plug.name}' at {plug.ip_address} to {state}")
+            logger.info("Toggled smart plug '%s' at %s to %s", plug.name, plug.ip_address, state)
 
         return success
 

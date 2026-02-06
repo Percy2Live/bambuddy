@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
+from defusedxml.ElementTree import ParseError as XMLParseError
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,8 +57,8 @@ class ThreeMFParser:
                 self.metadata.pop("_slice_filament_type", None)
                 self.metadata.pop("_slice_filament_color", None)
                 self.metadata.pop("_plate_index", None)
-        except Exception:
-            pass
+        except (KeyError, ValueError, zipfile.BadZipFile, XMLParseError, UnicodeDecodeError):
+            pass  # Return whatever metadata was extracted before the error
         return self.metadata
 
     def _parse_slice_info(self, zf: zipfile.ZipFile):
@@ -98,7 +99,7 @@ class ThreeMFParser:
                                 # Store in metadata for print_name generation
                                 self.metadata["_plate_index"] = extracted_index
                             except ValueError:
-                                pass
+                                pass  # Skip non-numeric plate index
                         elif key == "prediction" and value:
                             self.metadata["print_time_seconds"] = int(value)
                         elif key == "weight" and value:
@@ -117,7 +118,7 @@ class ThreeMFParser:
                             try:
                                 printable_objects[int(identify_id)] = name
                             except ValueError:
-                                pass
+                                pass  # Skip objects with non-numeric identify_id
 
                     if printable_objects:
                         self.metadata["printable_objects"] = printable_objects
@@ -151,8 +152,8 @@ class ThreeMFParser:
                         self.metadata["_slice_filament_type"] = ", ".join(types)
                     if colors:
                         self.metadata["_slice_filament_color"] = ",".join(colors)
-        except Exception:
-            pass
+        except (KeyError, ValueError, XMLParseError, UnicodeDecodeError):
+            pass  # Skip unparseable slice_info metadata
 
     def _parse_project_settings(self, zf: zipfile.ZipFile):
         """Parse project settings for print configuration."""
@@ -164,14 +165,12 @@ class ThreeMFParser:
                     self._extract_filament_info(data)
                     self._extract_print_settings(data)
                 except json.JSONDecodeError:
-                    pass
-        except Exception:
-            pass
+                    pass  # Skip malformed project_settings JSON
+        except (KeyError, ValueError, UnicodeDecodeError):
+            pass  # Skip unreadable project settings file
 
     def _parse_gcode_header(self, zf: zipfile.ZipFile):
         """Parse G-code file header for total layer count and printer model."""
-        import re
-
         try:
             # Look for plate_1.gcode or similar
             gcode_files = [f for f in zf.namelist() if f.endswith(".gcode")]
@@ -197,8 +196,8 @@ class ThreeMFParser:
 
                     raw_model = match.group(1).strip()
                     self.metadata["sliced_for_model"] = normalize_printer_model(raw_model)
-        except Exception:
-            pass
+        except (KeyError, ValueError, UnicodeDecodeError):
+            pass  # G-code header parsing is best-effort; metadata may come from other sources
 
     def _extract_filament_info(self, data: dict):
         """Extract filament info, preferring non-support filaments."""
@@ -238,8 +237,8 @@ class ThreeMFParser:
             if non_support_colors:
                 self.metadata["filament_color"] = ",".join(non_support_colors)
 
-        except Exception:
-            pass
+        except (KeyError, ValueError, TypeError, IndexError):
+            pass  # Filament info is optional; fall back to slice_info values
 
     def _extract_print_settings(self, data: dict):
         """Extract print settings from JSON config."""
@@ -285,8 +284,8 @@ class ThreeMFParser:
                 from backend.app.utils.printer_models import normalize_printer_model
 
                 self.metadata["sliced_for_model"] = normalize_printer_model(data["printer_model"])
-        except Exception:
-            pass
+        except (KeyError, ValueError, TypeError):
+            pass  # Print settings are optional; missing values are left unset
 
     def _extract_settings_from_content(self, content: str):
         """Extract print settings from config content."""
@@ -309,13 +308,11 @@ class ThreeMFParser:
                             value_end = content.find("}", value_start)
                         value = content[value_start:value_end].strip().strip('"')
                         self.metadata[key] = converter(value)
-                except Exception:
-                    pass
+                except (ValueError, TypeError):
+                    pass  # Skip settings with unconvertible values
 
     def _parse_3dmodel(self, zf: zipfile.ZipFile):
         """Parse 3D/3dmodel.model for MakerWorld metadata."""
-        import re
-
         try:
             model_path = "3D/3dmodel.model"
             if model_path not in zf.namelist():
@@ -356,8 +353,8 @@ class ThreeMFParser:
             if "Title" in makerworld_fields:
                 self.metadata["print_name"] = makerworld_fields["Title"]
 
-        except Exception:
-            pass
+        except (KeyError, ValueError, UnicodeDecodeError):
+            pass  # MakerWorld/3dmodel metadata is optional
 
     def _extract_thumbnail(self, zf: zipfile.ZipFile):
         """Extract thumbnail image from 3MF.
@@ -403,7 +400,6 @@ def extract_printable_objects_from_3mf(
         If include_positions=False: Dictionary mapping identify_id (int) to object name (str)
         If include_positions=True: Tuple of (dict mapping identify_id to {name, x, y}, bbox_all list or None)
     """
-    import json
     from io import BytesIO
 
     printable_objects: dict = {}
@@ -435,7 +431,7 @@ def extract_printable_objects_from_3mf(
                     try:
                         plate_idx = int(meta.get("value", "1"))
                     except ValueError:
-                        pass
+                        pass  # Use default plate_idx if value is non-numeric
                     break
 
             # Load position data from plate_N.json if we need positions
@@ -456,7 +452,7 @@ def extract_printable_objects_from_3mf(
                                     bbox_by_name[obj_name] = []
                                 bbox_by_name[obj_name].append(bbox)
                     except (json.JSONDecodeError, KeyError):
-                        pass
+                        pass  # Position data is optional; objects will lack x/y coordinates
 
             # Extract objects from slice_info.config
             for obj in plate.findall("object"):
@@ -480,10 +476,10 @@ def extract_printable_objects_from_3mf(
                         else:
                             printable_objects[obj_id] = name
                     except ValueError:
-                        pass
+                        pass  # Skip objects with non-numeric identify_id
 
-    except Exception:
-        pass
+    except (KeyError, ValueError, zipfile.BadZipFile, XMLParseError, UnicodeDecodeError):
+        pass  # Return empty dict if 3MF is corrupt or unreadable
 
     if include_positions:
         return printable_objects, bbox_all
@@ -499,7 +495,6 @@ class ProjectPageParser:
     def parse(self, archive_id: int) -> dict:
         """Extract project page metadata and images from 3MF file."""
         import html
-        import re
 
         result = {
             "title": None,
@@ -603,7 +598,7 @@ class ProjectPageParser:
                                 }
                             )
 
-        except Exception as e:
+        except (KeyError, ValueError, zipfile.BadZipFile, UnicodeDecodeError) as e:
             result["_error"] = str(e)
 
         return result
@@ -628,8 +623,8 @@ class ProjectPageParser:
                     }
                     content_type = content_types.get(ext, "application/octet-stream")
                     return (data, content_type)
-        except Exception:
-            pass
+        except (KeyError, zipfile.BadZipFile, OSError):
+            pass  # Return None if image cannot be extracted from 3MF
         return None
 
     def update_metadata(self, updates: dict) -> bool:
@@ -642,7 +637,6 @@ class ProjectPageParser:
             True if successful, False otherwise.
         """
         import html
-        import re
         import tempfile
 
         try:
@@ -690,7 +684,7 @@ class ProjectPageParser:
             shutil.move(tmp_path, self.file_path)
             return True
 
-        except Exception:
+        except (zipfile.BadZipFile, OSError, UnicodeDecodeError, KeyError, ValueError):
             # Clean up temp file if it exists
             if "tmp_path" in locals() and tmp_path.exists():
                 tmp_path.unlink()
@@ -894,7 +888,7 @@ class ArchiveService:
         printable_objects = metadata.get("printable_objects")
         if printable_objects and isinstance(printable_objects, dict):
             quantity = len(printable_objects)
-            logger.debug(f"Auto-detected {quantity} parts from 3MF printable objects")
+            logger.debug("Auto-detected %s parts from 3MF printable objects", quantity)
 
         # Create archive record
         archive = PrintArchive(
@@ -998,7 +992,7 @@ class ArchiveService:
             archive.cost = round(archive.cost + additional_cost, 2)
 
         await self.db.commit()
-        logger.info(f"Added reprint cost {additional_cost} to archive {archive_id}, new total: {archive.cost}")
+        logger.info("Added reprint cost %s to archive %s, new total: %s", additional_cost, archive_id, archive.cost)
         return True
 
     async def list_archives(
