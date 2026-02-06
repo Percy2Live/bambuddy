@@ -6,16 +6,17 @@ import { api } from '../api/client';
 import type { SpoolmanSyncResult, Printer } from '../api/client';
 import { Card, CardContent, CardHeader } from './Card';
 import { Button } from './Button';
+import { useToast } from '../contexts/ToastContext';
 
 export function SpoolmanSettings() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [localEnabled, setLocalEnabled] = useState(false);
   const [localUrl, setLocalUrl] = useState('');
   const [localSyncMode, setLocalSyncMode] = useState('auto');
   const [localDisableWeightSync, setLocalDisableWeightSync] = useState(false);
   const [localReportPartialUsage, setLocalReportPartialUsage] = useState(true);
-  const [showSaved, setShowSaved] = useState(false);
   const [selectedPrinterId, setSelectedPrinterId] = useState<number | 'all'>('all');
   const [isInitialized, setIsInitialized] = useState(false);
   const [showAllSkipped, setShowAllSkipped] = useState(false);
@@ -85,8 +86,7 @@ export function SpoolmanSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['spoolman-settings'] });
       queryClient.invalidateQueries({ queryKey: ['spoolman-status'] });
-      setShowSaved(true);
-      setTimeout(() => setShowSaved(false), 2000);
+      showToast(t('settings.toast.settingsSaved'));
     },
   });
 
@@ -168,9 +168,6 @@ export function SpoolmanSettings() {
           </div>
           {saveMutation.isPending && (
             <Loader2 className="w-4 h-4 text-bambu-green animate-spin" />
-          )}
-          {showSaved && (
-            <Check className="w-4 h-4 text-bambu-green" />
           )}
         </div>
       </CardHeader>
