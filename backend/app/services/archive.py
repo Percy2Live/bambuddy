@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
-from defusedxml.ElementTree import ParseError as XMLParseError
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,7 +56,7 @@ class ThreeMFParser:
                 self.metadata.pop("_slice_filament_type", None)
                 self.metadata.pop("_slice_filament_color", None)
                 self.metadata.pop("_plate_index", None)
-        except (KeyError, ValueError, zipfile.BadZipFile, XMLParseError, UnicodeDecodeError):
+        except Exception:
             pass  # Return whatever metadata was extracted before the error
         return self.metadata
 
@@ -152,7 +151,7 @@ class ThreeMFParser:
                         self.metadata["_slice_filament_type"] = ", ".join(types)
                     if colors:
                         self.metadata["_slice_filament_color"] = ",".join(colors)
-        except (KeyError, ValueError, XMLParseError, UnicodeDecodeError):
+        except Exception:
             pass  # Skip unparseable slice_info metadata
 
     def _parse_project_settings(self, zf: zipfile.ZipFile):
@@ -166,7 +165,7 @@ class ThreeMFParser:
                     self._extract_print_settings(data)
                 except json.JSONDecodeError:
                     pass  # Skip malformed project_settings JSON
-        except (KeyError, ValueError, UnicodeDecodeError):
+        except Exception:
             pass  # Skip unreadable project settings file
 
     def _parse_gcode_header(self, zf: zipfile.ZipFile):
@@ -196,7 +195,7 @@ class ThreeMFParser:
 
                     raw_model = match.group(1).strip()
                     self.metadata["sliced_for_model"] = normalize_printer_model(raw_model)
-        except (KeyError, ValueError, UnicodeDecodeError):
+        except Exception:
             pass  # G-code header parsing is best-effort; metadata may come from other sources
 
     def _extract_filament_info(self, data: dict):
@@ -237,7 +236,7 @@ class ThreeMFParser:
             if non_support_colors:
                 self.metadata["filament_color"] = ",".join(non_support_colors)
 
-        except (KeyError, ValueError, TypeError, IndexError):
+        except Exception:
             pass  # Filament info is optional; fall back to slice_info values
 
     def _extract_print_settings(self, data: dict):
@@ -284,7 +283,7 @@ class ThreeMFParser:
                 from backend.app.utils.printer_models import normalize_printer_model
 
                 self.metadata["sliced_for_model"] = normalize_printer_model(data["printer_model"])
-        except (KeyError, ValueError, TypeError):
+        except Exception:
             pass  # Print settings are optional; missing values are left unset
 
     def _extract_settings_from_content(self, content: str):
@@ -353,7 +352,7 @@ class ThreeMFParser:
             if "Title" in makerworld_fields:
                 self.metadata["print_name"] = makerworld_fields["Title"]
 
-        except (KeyError, ValueError, UnicodeDecodeError):
+        except Exception:
             pass  # MakerWorld/3dmodel metadata is optional
 
     def _extract_thumbnail(self, zf: zipfile.ZipFile):
@@ -478,7 +477,7 @@ def extract_printable_objects_from_3mf(
                     except ValueError:
                         pass  # Skip objects with non-numeric identify_id
 
-    except (KeyError, ValueError, zipfile.BadZipFile, XMLParseError, UnicodeDecodeError):
+    except Exception:
         pass  # Return empty dict if 3MF is corrupt or unreadable
 
     if include_positions:
@@ -598,7 +597,7 @@ class ProjectPageParser:
                                 }
                             )
 
-        except (KeyError, ValueError, zipfile.BadZipFile, UnicodeDecodeError) as e:
+        except Exception as e:
             result["_error"] = str(e)
 
         return result
@@ -623,7 +622,7 @@ class ProjectPageParser:
                     }
                     content_type = content_types.get(ext, "application/octet-stream")
                     return (data, content_type)
-        except (KeyError, zipfile.BadZipFile, OSError):
+        except Exception:
             pass  # Return None if image cannot be extracted from 3MF
         return None
 
@@ -684,7 +683,7 @@ class ProjectPageParser:
             shutil.move(tmp_path, self.file_path)
             return True
 
-        except (zipfile.BadZipFile, OSError, UnicodeDecodeError, KeyError, ValueError):
+        except Exception:
             # Clean up temp file if it exists
             if "tmp_path" in locals() and tmp_path.exists():
                 tmp_path.unlink()

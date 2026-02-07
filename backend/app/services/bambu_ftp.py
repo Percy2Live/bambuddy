@@ -171,7 +171,7 @@ class BambuFTPClient:
             logger.warning("FTP SSL error connecting to %s: %s", self.ip_address, e)
             self._ftp = None
             return False
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             logger.warning("FTP connection failed to %s: %s (type: %s)", self.ip_address, e, type(e).__name__)
             self._ftp = None
             return False
@@ -181,7 +181,7 @@ class BambuFTPClient:
         if self._ftp:
             try:
                 self._ftp.quit()
-            except (OSError, ftplib.error_reply):
+            except (OSError, ftplib.Error):
                 pass  # Best-effort FTP cleanup; connection may already be closed
             self._ftp = None
 
@@ -239,7 +239,7 @@ class BambuFTPClient:
                         file_entry["mtime"] = mtime
                     files.append(file_entry)
             logger.debug("Listed %s files in %s", len(files), path)
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             logger.info("FTP list_files failed for %s: %s", path, e)
 
         return files
@@ -253,7 +253,7 @@ class BambuFTPClient:
             buffer = BytesIO()
             self._ftp.retrbinary(f"RETR {remote_path}", buffer.write)
             return buffer.getvalue()
-        except (OSError, ftplib.error_reply):
+        except (OSError, ftplib.Error):
             return None
 
     def download_to_file(self, remote_path: str, local_path: Path) -> bool:
@@ -271,7 +271,7 @@ class BambuFTPClient:
             file_size = local_path.stat().st_size if local_path.exists() else 0
             logger.info("Successfully downloaded %s to %s (%s bytes)", remote_path, local_path, file_size)
             return True
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             # Log at INFO level so we can see failures in normal logs
             logger.info("FTP download failed for %s: %s", remote_path, e)
             # Clean up partial file if it exists
@@ -302,7 +302,7 @@ class BambuFTPClient:
         try:
             results["pwd"] = self._ftp.pwd()
             logger.debug("FTP current directory: %s", results["pwd"])
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             results["errors"].append(f"PWD failed: {e}")
             logger.debug("FTP PWD failed: %s", e)
 
@@ -314,7 +314,7 @@ class BambuFTPClient:
             results["can_list_root"] = True
             results["root_files"] = items[:10]  # First 10 entries
             logger.debug("FTP root listing (%s items): %s", len(items), items[:5])
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             results["errors"].append(f"LIST / failed: {e}")
             logger.debug("FTP LIST / failed: %s", e)
 
@@ -325,7 +325,7 @@ class BambuFTPClient:
             self._ftp.retrlines("LIST", items.append)
             results["can_list_cache"] = True
             logger.debug("FTP /cache listing: %s items", len(items))
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             results["errors"].append(f"LIST /cache failed: {e}")
             logger.debug("FTP LIST /cache failed: %s", e)
 
@@ -333,7 +333,7 @@ class BambuFTPClient:
         try:
             results["storage_info"] = self.get_storage_info()
             logger.debug("FTP storage info: %s", results["storage_info"])
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             results["errors"].append(f"Storage info failed: {e}")
 
         return results
@@ -352,17 +352,6 @@ class BambuFTPClient:
         try:
             file_size = local_path.stat().st_size if local_path.exists() else 0
             logger.info("FTP uploading %s (%s bytes) to %s", local_path, file_size, remote_path)
-
-            # Run storage diagnostics before upload (debug)
-            logger.debug("Running pre-upload storage diagnostics...")
-            diag = self.diagnose_storage()
-            logger.info(
-                f"FTP storage diagnostics: can_list_root={diag['can_list_root']}, "
-                f"can_list_cache={diag['can_list_cache']}, "
-                f"storage={diag['storage_info']}, errors={diag['errors']}"
-            )
-            if diag["root_files"]:
-                logger.debug("FTP root directory contents: %s", diag["root_files"])
 
             uploaded = 0
 
@@ -414,7 +403,7 @@ class BambuFTPClient:
             elif error_code == "552":
                 logger.error("FTP 552 error - Storage quota exceeded (SD card full?)")
             return False
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             logger.error("FTP upload failed for %s: %s (type: %s)", remote_path, e, type(e).__name__)
             return False
 
@@ -443,7 +432,7 @@ class BambuFTPClient:
 
             conn.close()
             return True
-        except (OSError, ftplib.error_reply):
+        except (OSError, ftplib.Error):
             return False
 
     def delete_file(self, remote_path: str) -> bool:
@@ -454,7 +443,7 @@ class BambuFTPClient:
         try:
             self._ftp.delete(remote_path)
             return True
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             logger.warning("Failed to delete %s: %s", remote_path, e)
             return False
 
@@ -465,7 +454,7 @@ class BambuFTPClient:
 
         try:
             return self._ftp.size(remote_path)
-        except (OSError, ftplib.error_reply):
+        except (OSError, ftplib.Error):
             return None
 
     def get_storage_info(self) -> dict | None:
@@ -484,13 +473,13 @@ class BambuFTPClient:
                 parts = response.split()
                 if len(parts) >= 2:
                     result["free_bytes"] = int(parts[1])
-        except (OSError, ftplib.error_reply) as e:
+        except (OSError, ftplib.Error) as e:
             logger.debug("AVBL command not supported: %s", e)
             # Try STAT command as fallback
             try:
                 response = self._ftp.sendcmd("STAT")
                 logger.debug("STAT response: %s", response)
-            except (OSError, ftplib.error_reply):
+            except (OSError, ftplib.Error):
                 pass  # Both AVBL and STAT unsupported; storage info will rely on directory scan
 
         # Calculate used space by listing root directories
@@ -511,11 +500,11 @@ class BambuFTPClient:
                                 total_used += int(parts[4])
                             except ValueError:
                                 pass  # Skip entries with non-numeric size fields
-                except (OSError, ftplib.error_reply):
+                except (OSError, ftplib.Error):
                     pass  # Directory may not exist on this printer model; skip it
 
             result["used_bytes"] = total_used
-        except (OSError, ftplib.error_reply):
+        except (OSError, ftplib.Error):
             pass  # Storage scan failed; return whatever info was collected above
 
         return result if result else None

@@ -92,7 +92,7 @@ def _extract_filament_types_from_3mf(file_path: Path, plate_id: int | None = Non
                     if used_grams > 0 and filament_type:
                         types.add(filament_type)
 
-    except (zipfile.BadZipFile, ET.ParseError, OSError, KeyError, ValueError, UnicodeDecodeError) as e:
+    except Exception as e:
         logger.warning("Failed to extract filament types from %s: %s", file_path, e)
 
     return sorted(types)
@@ -144,7 +144,7 @@ def _extract_print_time_from_3mf(file_path: Path, plate_id: int | None = None) -
                                 return int(meta.get("value", "0"))
                             except ValueError:
                                 return None
-    except (zipfile.BadZipFile, ET.ParseError, OSError, KeyError, ValueError, UnicodeDecodeError) as e:
+    except Exception as e:
         logger.warning("Failed to extract print time from %s: %s", file_path, e)
 
     return None

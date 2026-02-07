@@ -175,7 +175,7 @@ def extract_gcode_thumbnail(file_path: Path) -> bytes | None:
                     thumbnail_lines.append(data_line)
 
         return thumbnail_data
-    except OSError as e:
+    except Exception as e:
         logger.warning("Failed to extract gcode thumbnail: %s", e)
         return None
 
@@ -774,7 +774,7 @@ async def upload_file(
                     return obj
 
                 metadata = clean_metadata(raw_metadata)
-            except (KeyError, ValueError, zipfile.BadZipFile, OSError) as e:
+            except Exception as e:
                 logger.warning("Failed to parse 3MF: %s", e)
 
         elif ext == ".gcode":
@@ -787,7 +787,7 @@ async def upload_file(
                     with open(thumb_path, "wb") as f:
                         f.write(thumbnail_data)
                     thumbnail_path = str(thumb_path)
-            except OSError as e:
+            except Exception as e:
                 logger.warning("Failed to extract gcode thumbnail: %s", e)
 
         elif ext.lower() in IMAGE_EXTENSIONS:
@@ -867,7 +867,7 @@ async def extract_zip_file(
             content = await file.read()
             tmp.write(content)
             tmp_path = tmp.name
-    except OSError as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save ZIP file: {str(e)}")
 
     extracted_files: list[ZipExtractResult] = []
@@ -1013,7 +1013,7 @@ async def extract_zip_file(
                                 return obj
 
                             metadata = clean_metadata(raw_metadata)
-                        except (KeyError, ValueError, zipfile.BadZipFile, OSError) as e:
+                        except Exception as e:
                             logger.warning("Failed to parse 3MF from ZIP: %s", e)
 
                     elif ext == ".gcode":
@@ -1025,7 +1025,7 @@ async def extract_zip_file(
                                 with open(thumb_path, "wb") as f:
                                     f.write(thumbnail_data)
                                 thumbnail_path = str(thumb_path)
-                        except OSError as e:
+                        except Exception as e:
                             logger.warning("Failed to extract gcode thumbnail from ZIP: %s", e)
 
                     elif ext.lower() in IMAGE_EXTENSIONS:
@@ -1423,7 +1423,7 @@ async def get_library_file_plates(
                                         plate_object_ids.setdefault(plater_id, [])
                                         if obj_id not in plate_object_ids[plater_id]:
                                             plate_object_ids[plater_id].append(obj_id)
-                except (KeyError, ValueError, ET.ParseError, UnicodeDecodeError):
+                except Exception:
                     pass  # model_settings.config is optional; skip if missing or malformed
 
             # Parse slice_info.config for plate metadata
@@ -1516,7 +1516,7 @@ async def get_library_file_plates(
                             names.append(obj_name)
                     if names:
                         plate_json_objects[plate_index] = names
-                except (json.JSONDecodeError, KeyError, ValueError, UnicodeDecodeError):
+                except Exception:
                     continue
 
             # Build plate list
@@ -1553,7 +1553,7 @@ async def get_library_file_plates(
                     }
                 )
 
-    except (KeyError, ValueError, zipfile.BadZipFile, ET.ParseError, UnicodeDecodeError) as e:
+    except Exception as e:
         logger.warning("Failed to parse plates from library file %s: %s", file_id, e)
 
     return {
@@ -1589,7 +1589,7 @@ async def get_library_file_plate_thumbnail(
             if thumb_path in zf.namelist():
                 data = zf.read(thumb_path)
                 return Response(content=data, media_type="image/png")
-    except (zipfile.BadZipFile, KeyError, OSError):
+    except Exception:
         pass  # Archive unreadable or thumbnail missing; fall through to 404
 
     raise HTTPException(status_code=404, detail=f"Thumbnail for plate {plate_index} not found")
@@ -1711,7 +1711,7 @@ async def get_library_file_filament_requirements(
             # Sort by slot ID
             filaments.sort(key=lambda x: x["slot_id"])
 
-    except (KeyError, ValueError, zipfile.BadZipFile, ET.ParseError, UnicodeDecodeError) as e:
+    except Exception as e:
         logger.warning("Failed to parse filament requirements from library file %s: %s", file_id, e)
 
     return {

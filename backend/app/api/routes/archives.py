@@ -1886,7 +1886,7 @@ async def get_archive_capabilities(
                             if "<vertex" in content or "<mesh" in content:
                                 found_mesh = True
                                 break
-                        except (KeyError, UnicodeDecodeError):
+                        except Exception:
                             pass  # Skip unreadable .model entries in archive
 
                 # Extract filament colors from project_settings.config
@@ -1928,7 +1928,7 @@ async def get_archive_capabilities(
                             for color in raw_colors:
                                 if color and isinstance(color, str):
                                     colors.append(color)
-                    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+                    except Exception:
                         pass  # Skip malformed project_settings.config
         except zipfile.BadZipFile:
             pass  # File is not a valid zip/3MF archive
@@ -1961,7 +1961,7 @@ async def get_archive_capabilities(
                             if "<vertex" in content or "<mesh" in content:
                                 has_model = True
                                 break
-                        except (KeyError, UnicodeDecodeError):
+                        except Exception:
                             pass  # Skip unreadable .model entries in archive
 
             # Extract filament colors from slice_info.config (for gcode preview)
@@ -1995,7 +1995,7 @@ async def get_archive_capabilities(
                         max_tool = max(filament_map.keys())
                         for i in range(max_tool + 1):
                             slice_colors.append(filament_map.get(i, "#00AE42"))
-                except (KeyError, ValueError, ET.ParseError, UnicodeDecodeError):
+                except Exception:
                     pass  # Skip malformed slice_info.config XML
 
             # Use slice_info colors if we don't have colors from source yet
@@ -2041,7 +2041,7 @@ async def get_archive_capabilities(
                                 for color in raw_colors:
                                     if color and isinstance(color, str):
                                         filament_colors.append(color)
-                    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+                    except Exception:
                         pass  # Skip malformed project_settings.config
 
     except zipfile.BadZipFile:
@@ -2130,7 +2130,7 @@ async def get_plate_preview(
                     plate_elem = root.find(".//plate/metadata[@key='index']")
                     if plate_elem is not None:
                         plate_num = int(plate_elem.get("value", "1"))
-                except (KeyError, ValueError, ET.ParseError, UnicodeDecodeError):
+                except Exception:
                     pass  # Default plate_num=1 if slice_info is missing or malformed
 
             # Try plate-specific image first, then fall back to plate_1
@@ -2376,7 +2376,7 @@ async def get_archive_plates(
                                         plate_object_ids.setdefault(plater_id, [])
                                         if obj_id not in plate_object_ids[plater_id]:
                                             plate_object_ids[plater_id].append(obj_id)
-                except (KeyError, ValueError, ET.ParseError, UnicodeDecodeError):
+                except Exception:
                     pass  # model_settings.config parsing is optional
 
             # Parse slice_info.config for plate metadata
@@ -2475,7 +2475,7 @@ async def get_archive_plates(
                             names.append(obj_name)
                     if names:
                         plate_json_objects[plate_index] = names
-                except (json.JSONDecodeError, KeyError, ValueError, UnicodeDecodeError):
+                except Exception:
                     continue
 
             # Build plate list
@@ -2512,7 +2512,7 @@ async def get_archive_plates(
                     }
                 )
 
-    except (KeyError, ValueError, zipfile.BadZipFile, ET.ParseError, UnicodeDecodeError) as e:
+    except Exception as e:
         logger.warning("Failed to parse plates from archive %s: %s", archive_id, e)
 
     return {
@@ -2548,7 +2548,7 @@ async def get_plate_thumbnail(
             if thumb_path in zf.namelist():
                 data = zf.read(thumb_path)
                 return Response(content=data, media_type="image/png")
-    except (zipfile.BadZipFile, KeyError, OSError):
+    except Exception:
         pass  # Fall through to 404 if archive is unreadable or thumbnail missing
 
     raise HTTPException(404, f"Thumbnail for plate {plate_index} not found")
@@ -2664,7 +2664,7 @@ async def get_filament_requirements(
             # Sort by slot ID
             filaments.sort(key=lambda x: x["slot_id"])
 
-    except (KeyError, ValueError, zipfile.BadZipFile, ET.ParseError, UnicodeDecodeError) as e:
+    except Exception as e:
         logger.warning("Failed to parse filament requirements from archive %s: %s", archive_id, e)
 
     return {

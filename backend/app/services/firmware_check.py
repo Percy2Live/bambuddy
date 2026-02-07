@@ -103,7 +103,7 @@ class FirmwareCheckService:
                     logger.info("Got Bambu Lab build ID: %s", self._build_id)
                     return self._build_id
             logger.warning("Failed to get Bambu Lab page: %s", response.status_code)
-        except (httpx.HTTPError, OSError) as e:
+        except Exception as e:
             logger.error("Error fetching Bambu Lab build ID: %s", e)
 
         return self._build_id  # Return cached value if available
@@ -138,7 +138,7 @@ class FirmwareCheckService:
                 # api_key is a printer model identifier (e.g. "x1", "p1"), not a secret
                 logger.warning("Failed to fetch firmware for %s: %s", api_key, response.status_code)
 
-        except (httpx.HTTPError, OSError, KeyError, ValueError) as e:
+        except Exception as e:
             # api_key is a printer model identifier (e.g. "x1", "p1"), not a secret
             logger.error("Error fetching firmware for %s: %s", api_key, e)
 
@@ -359,7 +359,7 @@ class FirmwareCheckService:
 
             return original_path
 
-        except (httpx.HTTPError, OSError) as e:
+        except Exception as e:
             logger.error("Firmware download failed: %s", e)
             if temp_path.exists():
                 try:

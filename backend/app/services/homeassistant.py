@@ -65,7 +65,7 @@ class HomeAssistantService:
                     "reachable": True,
                     "device_name": data.get("attributes", {}).get("friendly_name"),
                 }
-        except (httpx.HTTPError, OSError, KeyError) as e:
+        except Exception as e:
             logger.warning("Failed to get HA entity state for %s: %s", plug.ha_entity_id, e)
             return {"state": None, "reachable": False, "device_name": None}
 
@@ -106,7 +106,7 @@ class HomeAssistantService:
                 )
                 response.raise_for_status()
                 return True
-        except (httpx.HTTPError, OSError) as e:
+        except Exception as e:
             logger.warning("Failed to %s HA entity %s: %s", action, plug.ha_entity_id, e)
             return False
 
@@ -166,7 +166,7 @@ class HomeAssistantService:
                     "apparent_power": None,
                     "reactive_power": None,
                 }
-        except (httpx.HTTPError, OSError, KeyError, ValueError) as e:
+        except Exception as e:
             logger.debug("Failed to get HA energy data: %s", e)
             return None
 
@@ -181,7 +181,7 @@ class HomeAssistantService:
             state = response.json().get("state")
             if state and state not in ("unknown", "unavailable"):
                 return float(state)
-        except (httpx.HTTPError, OSError, ValueError):
+        except Exception:
             pass  # Sensor read is best-effort; caller handles None
         return None
 
@@ -284,7 +284,7 @@ class HomeAssistantService:
                     )
 
                 return sorted(entities, key=lambda x: x["friendly_name"].lower())
-        except (httpx.HTTPError, OSError, KeyError) as e:
+        except Exception as e:
             logger.warning("Failed to list HA entities: %s", e)
             return []
 
@@ -330,7 +330,7 @@ class HomeAssistantService:
                         )
 
                 return sorted(entities, key=lambda x: x["friendly_name"].lower())
-        except (httpx.HTTPError, OSError, KeyError) as e:
+        except Exception as e:
             logger.warning("Failed to list HA sensor entities: %s", e)
             return []
 

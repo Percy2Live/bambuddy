@@ -12,7 +12,6 @@ import zipfile
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
-from defusedxml.ElementTree import ParseError as XMLParseError
 
 # Default filament properties
 DEFAULT_FILAMENT_DIAMETER = 1.75  # mm
@@ -177,7 +176,7 @@ def extract_layer_filament_usage_from_3mf(file_path: Path) -> dict[int, dict[int
             gcode_content = zf.read(gcode_path).decode("utf-8", errors="ignore")
 
             return parse_gcode_layer_filament_usage(gcode_content)
-    except (zipfile.BadZipFile, OSError, UnicodeDecodeError):
+    except Exception:
         return None
 
 
@@ -259,7 +258,7 @@ def extract_filament_properties_from_3mf(file_path: Path) -> dict[int, dict]:
                             properties[fid]["density"] = DEFAULT_FILAMENT_DENSITY
                 except json.JSONDecodeError:
                     pass  # Skip malformed project_settings.config JSON
-    except (zipfile.BadZipFile, OSError, KeyError, ValueError, XMLParseError, UnicodeDecodeError):
+    except Exception:
         pass  # Return whatever properties were collected before the error
 
     return properties
@@ -303,7 +302,7 @@ def extract_filament_usage_from_3mf(file_path: Path) -> list[dict]:
                         )
                 except (ValueError, TypeError):
                     pass  # Skip filament entries with unparseable usage values
-    except (zipfile.BadZipFile, OSError, KeyError, ValueError, XMLParseError, UnicodeDecodeError):
+    except Exception:
         pass  # Return whatever usage data was collected before the error
 
     return filament_usage

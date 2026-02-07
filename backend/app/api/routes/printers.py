@@ -1113,7 +1113,7 @@ async def get_printer_file_plate_thumbnail(
             if thumb_path in zf.namelist():
                 image_data = zf.read(thumb_path)
                 return Response(content=image_data, media_type="image/png")
-    except (zipfile.BadZipFile, KeyError, OSError):
+    except Exception:
         pass  # Corrupt or unreadable 3MF; fall through to 404
 
     raise HTTPException(status_code=404, detail=f"Thumbnail for plate {plate_index} not found")
