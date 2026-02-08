@@ -13,6 +13,7 @@ All notable changes to Bambuddy will be documented in this file.
 - **Spoolman Fill Level for AMS Lite / External Spools** ([#293](https://github.com/maziggy/bambuddy/issues/293)) — AMS Lite (no weight sensor) always reported 0% fill level. Now uses Spoolman's remaining weight as a fallback when AMS reports 0%. External spools also show fill level from Spoolman data. Fill bars and hover cards indicate "(Spoolman)" when the data source is Spoolman rather than AMS.
 
 ### Improved
+- **Auto-Detect Subnet for Printer Discovery** — Docker users no longer need to manually enter a subnet in the Add Printer dialog. Bambuddy auto-detects available network subnets and pre-selects the first one. When multiple subnets are available (e.g., eth0 + wlan0), a dropdown lets users choose. Falls back to manual text input if no subnets are detected.
 - **Japanese Locale Complete Overhaul** — Restructured `ja.ts` from a divergent format (different key structure, 12 structural conflicts, 1,366 missing translations) to match the English/German locale structure exactly. Translated all 2,083 keys into Japanese, achieving full parity with EN/DE. Zero structural divergences, zero missing keys.
 
 ### Fixed

@@ -3385,13 +3385,18 @@ function AddPrinterModal({
   const [discoveryError, setDiscoveryError] = useState('');
   const [hasScanned, setHasScanned] = useState(false);
   const [isDocker, setIsDocker] = useState(false);
-  const [subnet, setSubnet] = useState('192.168.1.0/24');
+  const [detectedSubnets, setDetectedSubnets] = useState<string[]>([]);
+  const [subnet, setSubnet] = useState('');
   const [scanProgress, setScanProgress] = useState({ scanned: 0, total: 0 });
 
   // Fetch discovery info on mount
   useEffect(() => {
     discoveryApi.getInfo().then(info => {
       setIsDocker(info.is_docker);
+      if (info.subnets.length > 0) {
+        setDetectedSubnets(info.subnets);
+        setSubnet(info.subnets[0]);
+      }
     }).catch(() => {
       // Ignore errors, assume not Docker
     });
@@ -3556,14 +3561,27 @@ function AddPrinterModal({
                 <label className="block text-sm text-bambu-gray mb-1">
                   {t('printers.discovery.subnetToScan')}
                 </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none text-sm"
-                  value={subnet}
-                  onChange={(e) => setSubnet(e.target.value)}
-                  placeholder="192.168.1.0/24"
-                  disabled={discovering}
-                />
+                {detectedSubnets.length > 0 ? (
+                  <select
+                    className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none text-sm"
+                    value={subnet}
+                    onChange={(e) => setSubnet(e.target.value)}
+                    disabled={discovering}
+                  >
+                    {detectedSubnets.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none text-sm"
+                    value={subnet}
+                    onChange={(e) => setSubnet(e.target.value)}
+                    placeholder="192.168.1.0/24"
+                    disabled={discovering}
+                  />
+                )}
                 <p className="mt-1 text-xs text-bambu-gray">
                   {t('printers.discovery.dockerNote')}
                 </p>

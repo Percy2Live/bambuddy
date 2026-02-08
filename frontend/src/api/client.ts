@@ -3934,6 +3934,7 @@ export interface DiscoveryInfo {
   is_docker: boolean;
   ssdp_running: boolean;
   scan_running: boolean;
+  subnets: string[];
 }
 
 export interface SubnetScanStatus {
