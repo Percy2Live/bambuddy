@@ -7,6 +7,7 @@ import type { SMTPSettings, TestSMTPRequest } from '../api/client';
 import { Card, CardContent, CardHeader } from './Card';
 import { Button } from './Button';
 import { useToast } from '../contexts/ToastContext';
+import { useEffect } from 'react';
 
 export function EmailSettings() {
   const { t } = useTranslation();
@@ -37,14 +38,14 @@ export function EmailSettings() {
   });
 
   // Load existing settings when fetched
-  useState(() => {
+  useEffect(() => {
     if (existingSettings) {
       setSMTPSettings({
         ...existingSettings,
         smtp_password: '', // Never show password
       });
     }
-  });
+  }, [existingSettings]);
 
   // Save SMTP settings
   const saveMutation = useMutation({

@@ -124,7 +124,8 @@ export function UsersPage() {
   });
 
   const handleCreate = () => {
-    const advancedAuthEnabled = advancedAuthStatus?.advanced_auth_enabled;
+    // Use the status from the query hook
+    const advancedAuthEnabled = advancedAuthStatus?.advanced_auth_enabled || false;
     
     if (!formData.username) {
       showToast(t('users.toast.fillRequired'), 'error');

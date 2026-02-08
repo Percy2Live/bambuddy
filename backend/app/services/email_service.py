@@ -30,6 +30,8 @@ def generate_secure_password(length: int = 16) -> str:
     Returns:
         A secure random password containing uppercase, lowercase, digits, and special characters
     """
+    import random
+    
     # Define character sets
     lowercase = string.ascii_lowercase
     uppercase = string.ascii_uppercase
@@ -49,7 +51,7 @@ def generate_secure_password(length: int = 16) -> str:
     password_chars.extend(secrets.choice(all_chars) for _ in range(length - 4))
     
     # Shuffle to avoid predictable patterns
-    secrets.SystemRandom().shuffle(password_chars)
+    random.shuffle(password_chars)
     
     return "".join(password_chars)
 
