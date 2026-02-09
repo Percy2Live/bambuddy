@@ -40,6 +40,7 @@ import {
   Equal,
   Minus as MinusIcon,
   Plus as PlusIcon,
+  HardDrive,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { parseUTCDate } from '../utils/date';
@@ -49,9 +50,10 @@ import { Button } from '../components/Button';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { KProfilesView } from '../components/KProfilesView';
+import { LocalProfilesView } from '../components/LocalProfilesView';
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
-type ProfileTab = 'cloud' | 'kprofiles';
+type ProfileTab = 'cloud' | 'local' | 'kprofiles';
 type LoginStep = 'email' | 'code' | 'token';
 type PresetType = 'all' | 'filament' | 'printer' | 'process';
 
@@ -2891,6 +2893,17 @@ export function ProfilesPage() {
           {t('profiles.tabs.cloud')}
         </button>
         <button
+          onClick={() => setActiveTab('local')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'local'
+              ? 'text-bambu-green border-bambu-green'
+              : 'text-bambu-gray hover:text-white border-transparent'
+          }`}
+        >
+          <HardDrive className="w-4 h-4" />
+          {t('profiles.tabs.local')}
+        </button>
+        <button
           onClick={() => setActiveTab('kprofiles')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
             activeTab === 'kprofiles'
@@ -2952,6 +2965,9 @@ export function ProfilesPage() {
           )}
         </>
       )}
+
+      {/* Local Profiles Tab */}
+      {activeTab === 'local' && <LocalProfilesView />}
 
       {/* K-Profiles Tab */}
       {activeTab === 'kprofiles' && <KProfilesView />}

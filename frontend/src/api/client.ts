@@ -850,6 +850,44 @@ export interface SlicerSettingDeleteResponse {
   message: string;
 }
 
+// Local preset types (OrcaSlicer imports)
+export interface LocalPreset {
+  id: number;
+  name: string;
+  preset_type: string;
+  source: string;
+  filament_type: string | null;
+  filament_vendor: string | null;
+  nozzle_temp_min: number | null;
+  nozzle_temp_max: number | null;
+  pressure_advance: string | null;
+  default_filament_colour: string | null;
+  filament_cost: string | null;
+  filament_density: string | null;
+  compatible_printers: string | null;
+  inherits: string | null;
+  version: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocalPresetDetail extends LocalPreset {
+  setting: Record<string, unknown>;
+}
+
+export interface LocalPresetsResponse {
+  filament: LocalPreset[];
+  printer: LocalPreset[];
+  process: LocalPreset[];
+}
+
+export interface ImportResponse {
+  success: boolean;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
 export interface FieldOption {
   value: string;
   label: string;
@@ -2933,8 +2971,8 @@ export const api = {
     request<Record<number, SlotPresetMapping>>(`/printers/${printerId}/slot-presets`),
   getSlotPreset: (printerId: number, amsId: number, trayId: number) =>
     request<SlotPresetMapping | null>(`/printers/${printerId}/slot-presets/${amsId}/${trayId}`),
-  saveSlotPreset: (printerId: number, amsId: number, trayId: number, presetId: string, presetName: string) =>
-    request<SlotPresetMapping>(`/printers/${printerId}/slot-presets/${amsId}/${trayId}?preset_id=${encodeURIComponent(presetId)}&preset_name=${encodeURIComponent(presetName)}`, {
+  saveSlotPreset: (printerId: number, amsId: number, trayId: number, presetId: string, presetName: string, presetSource = 'cloud') =>
+    request<SlotPresetMapping>(`/printers/${printerId}/slot-presets/${amsId}/${trayId}?preset_id=${encodeURIComponent(presetId)}&preset_name=${encodeURIComponent(presetName)}&preset_source=${encodeURIComponent(presetSource)}`, {
       method: 'PUT',
     }),
   deleteSlotPreset: (printerId: number, amsId: number, trayId: number) =>
@@ -3660,6 +3698,38 @@ export const api = {
 
   clearGitHubBackupLogs: (keepLast: number = 10) =>
     request<{ deleted: number; message: string }>(`/github-backup/logs?keep_last=${keepLast}`, { method: 'DELETE' }),
+
+  // Local Presets (OrcaSlicer imports)
+  getLocalPresets: () =>
+    request<LocalPresetsResponse>('/local-presets/'),
+  getLocalPresetDetail: (id: number) =>
+    request<LocalPresetDetail>(`/local-presets/${id}`),
+  importLocalPresets: (formData: FormData) =>
+    fetch(`${API_BASE}/local-presets/import`, {
+      method: 'POST',
+      headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {},
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<ImportResponse>;
+    }),
+  createLocalPreset: (data: { name: string; preset_type: string; setting: Record<string, unknown> }) =>
+    request<LocalPreset>('/local-presets/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateLocalPreset: (id: number, data: { name?: string; setting?: Record<string, unknown> }) =>
+    request<LocalPreset>(`/local-presets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteLocalPreset: (id: number) =>
+    request<{ success: boolean }>(`/local-presets/${id}`, { method: 'DELETE' }),
+  refreshBaseProfileCache: () =>
+    request<{ refreshed: number; failed: number; total: number }>('/local-presets/base-cache/refresh', { method: 'POST' }),
 };
 
 // AMS History types

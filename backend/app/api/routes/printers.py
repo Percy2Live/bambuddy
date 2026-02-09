@@ -1502,6 +1502,7 @@ async def save_slot_preset(
     tray_id: int,
     preset_id: str,
     preset_name: str,
+    preset_source: str = "cloud",
     _=RequirePermissionIfAuthEnabled(Permission.PRINTERS_UPDATE),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1525,6 +1526,7 @@ async def save_slot_preset(
         # Update existing
         mapping.preset_id = preset_id
         mapping.preset_name = preset_name
+        mapping.preset_source = preset_source
     else:
         # Create new
         mapping = SlotPresetMapping(
@@ -1533,6 +1535,7 @@ async def save_slot_preset(
             tray_id=tray_id,
             preset_id=preset_id,
             preset_name=preset_name,
+            preset_source=preset_source,
         )
         db.add(mapping)
 
@@ -1544,6 +1547,7 @@ async def save_slot_preset(
         "tray_id": mapping.tray_id,
         "preset_id": mapping.preset_id,
         "preset_name": mapping.preset_name,
+        "preset_source": mapping.preset_source,
     }
 
 

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2, Settings2, ChevronDown, CheckCircle2, RotateCcw } from 'lucide-react';
 import { api } from '../api/client';
 import type { KProfile } from '../api/client';
@@ -216,6 +217,7 @@ export function ConfigureAmsSlotModal({
   nozzleDiameter = '0.4',
   onSuccess,
 }: ConfigureAmsSlotModalProps) {
+  const { t } = useTranslation();
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [selectedKProfile, setSelectedKProfile] = useState<KProfile | null>(null);
   const [colorHex, setColorHex] = useState<string>(''); // Just the 6-char hex, no alpha
@@ -231,6 +233,13 @@ export function ConfigureAmsSlotModal({
     enabled: isOpen,
   });
 
+  // Fetch local presets
+  const { data: localPresets, isLoading: localLoading } = useQuery({
+    queryKey: ['localPresets'],
+    queryFn: () => api.getLocalPresets(),
+    enabled: isOpen,
+  });
+
   // Fetch K profiles
   const { data: kprofilesData, isLoading: kprofilesLoading } = useQuery({
     queryKey: ['kprofiles', printerId, nozzleDiameter],
@@ -243,12 +252,24 @@ export function ConfigureAmsSlotModal({
     mutationFn: async () => {
       if (!selectedPresetId) throw new Error('No filament preset selected');
 
-      // Get the selected preset details
-      const selectedPreset = cloudSettings?.filament.find(p => p.setting_id === selectedPresetId);
-      if (!selectedPreset) throw new Error('Selected preset not found');
+      // Check if this is a local preset
+      const isLocal = selectedPresetId.startsWith('local_');
+      const localId = isLocal ? parseInt(selectedPresetId.replace('local_', ''), 10) : null;
+      const localPreset = isLocal
+        ? localPresets?.filament.find(p => p.id === localId)
+        : null;
+
+      // Get the selected cloud preset details (null for local presets)
+      const selectedPreset = !isLocal
+        ? cloudSettings?.filament.find(p => p.setting_id === selectedPresetId)
+        : null;
+
+      if (!isLocal && !selectedPreset) throw new Error('Selected preset not found');
+      if (isLocal && !localPreset) throw new Error('Selected local preset not found');
 
       // Parse the preset name for filament info
-      const parsed = parsePresetName(selectedPreset.name);
+      const presetName = isLocal ? localPreset!.name : selectedPreset!.name;
+      const parsed = parsePresetName(presetName);
 
       // Get cali_idx from selected K profile's slot_id (-1 = use default 0.020)
       const caliIdx = selectedKProfile?.slot_id ?? -1;
@@ -257,70 +278,86 @@ export function ConfigureAmsSlotModal({
       const color = colorHex || slotInfo.trayColor?.slice(0, 6) || 'FFFFFF';
 
       // Create the tray_sub_brands from preset name (without printer/nozzle suffix)
-      const traySubBrands = selectedPreset.name.replace(/@.+$/, '').trim();
+      const traySubBrands = presetName.replace(/@.+$/, '').trim();
 
-      // Get tray_info_idx: for user presets, fetch detail to get filament_id or derive from base_id
-      let trayInfoIdx = convertToTrayInfoIdx(selectedPresetId);
+      let trayInfoIdx: string;
+      let settingId: string;
 
-      // For user presets (not starting with GF), fetch the detail to get the real filament_id
-      if (!selectedPresetId.startsWith('GFS')) {
-        try {
-          const detail = await api.getCloudSettingDetail(selectedPresetId);
-          if (detail.filament_id) {
-            trayInfoIdx = detail.filament_id;
-          } else if (detail.base_id) {
-            // If no filament_id but has base_id (e.g., "GFSL05_09"), derive tray_info_idx from it
-            // This is common for user presets that inherit from Bambu presets
-            trayInfoIdx = convertToTrayInfoIdx(detail.base_id);
-            console.log(`Derived tray_info_idx from base_id: ${detail.base_id} -> ${trayInfoIdx}`);
+      if (isLocal) {
+        // Local presets have no Bambu Cloud mapping
+        trayInfoIdx = '';
+        settingId = '';
+      } else {
+        // Get tray_info_idx: for user presets, fetch detail to get filament_id or derive from base_id
+        trayInfoIdx = convertToTrayInfoIdx(selectedPresetId);
+        settingId = selectedPresetId;
+
+        // For user presets (not starting with GF), fetch the detail to get the real filament_id
+        if (!selectedPresetId.startsWith('GFS')) {
+          try {
+            const detail = await api.getCloudSettingDetail(selectedPresetId);
+            if (detail.filament_id) {
+              trayInfoIdx = detail.filament_id;
+            } else if (detail.base_id) {
+              trayInfoIdx = convertToTrayInfoIdx(detail.base_id);
+              console.log(`Derived tray_info_idx from base_id: ${detail.base_id} -> ${trayInfoIdx}`);
+            }
+          } catch (e) {
+            console.warn('Failed to fetch preset detail for filament_id:', e);
           }
-        } catch (e) {
-          console.warn('Failed to fetch preset detail for filament_id:', e);
-          // Fall back to derived tray_info_idx
         }
       }
 
-      // Default temp range based on material type
-      let tempMin = 190;
-      let tempMax = 230;
-      const material = parsed.material.toUpperCase();
-      if (material.includes('PLA')) {
-        tempMin = 190;
-        tempMax = 230;
-      } else if (material.includes('PETG')) {
-        tempMin = 220;
-        tempMax = 260;
-      } else if (material.includes('ABS')) {
-        tempMin = 240;
-        tempMax = 280;
-      } else if (material.includes('ASA')) {
-        tempMin = 240;
-        tempMax = 280;
-      } else if (material.includes('TPU')) {
+      // Default temp range — use local preset core fields if available
+      let tempMin = isLocal && localPreset?.nozzle_temp_min ? localPreset.nozzle_temp_min : 190;
+      let tempMax = isLocal && localPreset?.nozzle_temp_max ? localPreset.nozzle_temp_max : 230;
+
+      if (!isLocal || (!localPreset?.nozzle_temp_min && !localPreset?.nozzle_temp_max)) {
+        // Fall back to material-based defaults
+        const material = (isLocal ? (localPreset?.filament_type || parsed.material) : parsed.material).toUpperCase();
+        if (material.includes('PLA')) {
+          tempMin = 190;
+          tempMax = 230;
+        } else if (material.includes('PETG')) {
+          tempMin = 220;
+          tempMax = 260;
+        } else if (material.includes('ABS')) {
+          tempMin = 240;
+          tempMax = 280;
+        } else if (material.includes('ASA')) {
+          tempMin = 240;
+          tempMax = 280;
+        } else if (material.includes('TPU')) {
         tempMin = 200;
         tempMax = 240;
       } else if (material.includes('PC')) {
         tempMin = 260;
         tempMax = 300;
       } else if (material.includes('PA') || material.includes('NYLON')) {
-        tempMin = 250;
-        tempMax = 290;
+          tempMin = 250;
+          tempMax = 290;
+        }
       }
 
       // Parse K value from selected profile
       const kValue = selectedKProfile?.k_value ? parseFloat(selectedKProfile.k_value) : 0;
 
+      // Determine tray_type: use local preset's filament_type or parsed material
+      const trayType = isLocal
+        ? (localPreset?.filament_type || parsed.material || 'PLA')
+        : (parsed.material || 'PLA');
+
       // Configure the slot via MQTT
       const result = await api.configureAmsSlot(printerId, slotInfo.amsId, slotInfo.trayId, {
         tray_info_idx: trayInfoIdx,
-        tray_type: parsed.material || 'PLA',
+        tray_type: trayType,
         tray_sub_brands: traySubBrands,
         tray_color: color + 'FF', // Add alpha
         nozzle_temp_min: tempMin,
         nozzle_temp_max: tempMax,
         cali_idx: caliIdx,
         nozzle_diameter: nozzleDiameter,
-        setting_id: selectedPresetId, // Full setting ID for slicer compatibility
+        setting_id: settingId, // Full setting ID for slicer compatibility (empty for local)
         // Pass K profile's filament_id and setting_id for proper linking
         kprofile_filament_id: selectedKProfile?.filament_id,
         kprofile_setting_id: selectedKProfile?.setting_id || undefined,
@@ -331,8 +368,10 @@ export function ConfigureAmsSlotModal({
       // Save the preset mapping so we can display the correct name in the UI
       // This is needed because user presets use filament_id (e.g., P285e239) as tray_info_idx,
       // which can't be resolved to a name via the filamentInfo API
+      const mappingPresetId = isLocal ? `local_${localId}` : selectedPresetId;
+      const mappingSource = isLocal ? 'local' : 'cloud';
       try {
-        await api.saveSlotPreset(printerId, slotInfo.amsId, slotInfo.trayId, selectedPresetId, traySubBrands);
+        await api.saveSlotPreset(printerId, slotInfo.amsId, slotInfo.trayId, mappingPresetId, traySubBrands, mappingSource);
       } catch (e) {
         console.warn('Failed to save slot preset mapping:', e);
         // Don't fail the whole operation - slot was configured successfully
@@ -366,34 +405,60 @@ export function ConfigureAmsSlotModal({
     },
   });
 
-  // Filter filament presets based on search
-  const filteredPresets = useMemo(() => {
-    if (!cloudSettings?.filament) return [];
+  // Unified preset item for the list (cloud + local)
+  type PresetItem = { id: string; name: string; source: 'cloud' | 'local'; isUser: boolean };
 
+  // Filter filament presets based on search (merged cloud + local)
+  const filteredPresets = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return cloudSettings.filament
-      .filter(p => {
-        if (!query) return true;
-        return p.name.toLowerCase().includes(query);
-      })
-      .sort((a, b) => {
-        // Sort user presets first, then alphabetically
-        const aIsUser = isUserPreset(a.setting_id);
-        const bIsUser = isUserPreset(b.setting_id);
-        if (aIsUser && !bIsUser) return -1;
-        if (!aIsUser && bIsUser) return 1;
-        return a.name.localeCompare(b.name);
-      });
-  }, [cloudSettings?.filament, searchQuery]);
+    const items: PresetItem[] = [];
+
+    // Add local presets first
+    if (localPresets?.filament) {
+      for (const lp of localPresets.filament) {
+        if (!query || lp.name.toLowerCase().includes(query)) {
+          items.push({ id: `local_${lp.id}`, name: lp.name, source: 'local', isUser: false });
+        }
+      }
+    }
+
+    // Add cloud presets
+    if (cloudSettings?.filament) {
+      for (const cp of cloudSettings.filament) {
+        if (!query || cp.name.toLowerCase().includes(query)) {
+          items.push({ id: cp.setting_id, name: cp.name, source: 'cloud', isUser: isUserPreset(cp.setting_id) });
+        }
+      }
+    }
+
+    // Sort: local first, then user cloud presets, then built-in, alphabetically within groups
+    return items.sort((a, b) => {
+      if (a.source === 'local' && b.source !== 'local') return -1;
+      if (a.source !== 'local' && b.source === 'local') return 1;
+      if (a.isUser && !b.isUser) return -1;
+      if (!a.isUser && b.isUser) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [cloudSettings?.filament, localPresets?.filament, searchQuery]);
 
   // Get full preset name for K profile filtering (brand + material, without printer suffix)
   const selectedPresetInfo = useMemo(() => {
-    if (!selectedPresetId || !cloudSettings?.filament) return null;
-    const selectedPreset = cloudSettings.filament.find(p => p.setting_id === selectedPresetId);
-    if (!selectedPreset) return null;
+    if (!selectedPresetId) return null;
+
+    // Resolve the name from either local or cloud presets
+    let presetName: string | null = null;
+    if (selectedPresetId.startsWith('local_')) {
+      const localId = parseInt(selectedPresetId.replace('local_', ''), 10);
+      const lp = localPresets?.filament.find(p => p.id === localId);
+      presetName = lp?.name || null;
+    } else if (cloudSettings?.filament) {
+      const cp = cloudSettings.filament.find(p => p.setting_id === selectedPresetId);
+      presetName = cp?.name || null;
+    }
+    if (!presetName) return null;
 
     // Remove printer/nozzle suffix (e.g., "@BBL X1C" or "@0.4 nozzle")
-    let nameWithoutSuffix = selectedPreset.name.replace(/@.+$/, '').trim();
+    let nameWithoutSuffix = presetName.replace(/@.+$/, '').trim();
     // Strip leading "# " from custom preset names (user convention)
     if (nameWithoutSuffix.startsWith('# ')) {
       nameWithoutSuffix = nameWithoutSuffix.slice(2).trim();
@@ -405,7 +470,7 @@ export function ConfigureAmsSlotModal({
       material: parsed.material,
       brand: parsed.brand,
     };
-  }, [selectedPresetId, cloudSettings?.filament]);
+  }, [selectedPresetId, cloudSettings?.filament, localPresets?.filament]);
 
   // For backwards compatibility with the label
   const selectedMaterial = selectedPresetInfo?.fullName || '';
@@ -531,7 +596,7 @@ export function ConfigureAmsSlotModal({
 
   if (!isOpen) return null;
 
-  const isLoading = settingsLoading || kprofilesLoading;
+  const isLoading = settingsLoading || localLoading || kprofilesLoading;
   const canSave = selectedPresetId && !configureMutation.isPending;
 
   // Get display color (custom or slot default)
@@ -615,28 +680,35 @@ export function ConfigureAmsSlotModal({
                   <div className="max-h-48 overflow-y-auto space-y-1">
                     {filteredPresets.length === 0 ? (
                       <p className="text-center py-4 text-bambu-gray">
-                        {cloudSettings?.filament?.length === 0
-                          ? 'No cloud presets. Login to Bambu Cloud to sync.'
+                        {(cloudSettings?.filament?.length === 0 && !localPresets?.filament?.length)
+                          ? 'No presets available. Login to Bambu Cloud or import local profiles.'
                           : 'No matching presets found.'}
                       </p>
                     ) : (
                       filteredPresets.map((preset) => (
                         <button
-                          key={preset.setting_id}
-                          onClick={() => setSelectedPresetId(preset.setting_id)}
+                          key={preset.id}
+                          onClick={() => setSelectedPresetId(preset.id)}
                           className={`w-full p-2 rounded-lg border text-left transition-colors ${
-                            selectedPresetId === preset.setting_id
+                            selectedPresetId === preset.id
                               ? 'bg-bambu-green/20 border-bambu-green'
                               : 'bg-bambu-dark border-bambu-dark-tertiary hover:border-bambu-gray'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-white text-sm truncate">{preset.name}</span>
-                            {isUserPreset(preset.setting_id) && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-bambu-blue/20 text-bambu-blue">
-                                Custom
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {preset.source === 'local' && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-400">
+                                  {t('profiles.localProfiles.badge')}
+                                </span>
+                              )}
+                              {preset.isUser && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-bambu-blue/20 text-bambu-blue">
+                                  Custom
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       ))

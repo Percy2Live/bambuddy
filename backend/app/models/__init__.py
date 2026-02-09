@@ -6,9 +6,11 @@ from backend.app.models.github_backup import GitHubBackupConfig, GitHubBackupLog
 from backend.app.models.group import Group, user_groups
 from backend.app.models.kprofile_note import KProfileNote
 from backend.app.models.library import LibraryFile, LibraryFolder
+from backend.app.models.local_preset import LocalPreset
 from backend.app.models.maintenance import MaintenanceHistory, MaintenanceType, PrinterMaintenance
 from backend.app.models.notification import NotificationLog
 from backend.app.models.notification_template import NotificationTemplate
+from backend.app.models.orca_base_cache import OrcaBaseProfile
 from backend.app.models.pending_upload import PendingUpload
 from backend.app.models.printer import Printer
 from backend.app.models.project import Project
@@ -39,4 +41,6 @@ __all__ = [
     "user_groups",
     "GitHubBackupConfig",
     "GitHubBackupLog",
+    "LocalPreset",
+    "OrcaBaseProfile",
 ]
