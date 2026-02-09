@@ -147,6 +147,8 @@ class PrinterState:
     # H2D per-extruder tray_now from snow field: {extruder_id: normalized_global_tray_id}
     # snow encodes AMS ID in high byte: ams_id = snow >> 8, slot = snow & 0xFF
     h2d_extruder_snow: dict = field(default_factory=dict)
+    # H2C nozzle rack: full device.nozzle.info array for tool-changer printers (>2 nozzles)
+    nozzle_rack: list = field(default_factory=list)
     # Timestamp of last AMS data update (for RFID refresh detection)
     last_ams_update: float = 0.0
     # Printable objects for skip object functionality: {identify_id: object_name}
@@ -1740,12 +1742,24 @@ class BambuMQTTClient:
         if "nozzle_diameter_2" in data:
             self.state.nozzles[1].nozzle_diameter = str(data["nozzle_diameter_2"])
 
-        # H2D series: Nozzle hardware info is in device.nozzle.info array
+        # H2D/H2C series: Nozzle hardware info is in device.nozzle.info array
         if "device" in data and isinstance(data["device"], dict):
             device = data["device"]
             nozzle_data = device.get("nozzle", {})
             nozzle_info = nozzle_data.get("info", [])
             if isinstance(nozzle_info, list):
+                # H2C tool-changer: >2 entries means nozzle rack (6 dock + 1 mounted = 7)
+                if len(nozzle_info) > 2:
+                    self.state.nozzle_rack = [
+                        {
+                            "id": n.get("id", i),
+                            "type": str(n.get("type", "")),
+                            "diameter": str(n.get("diameter", "")),
+                            "wear": n.get("wear"),
+                            "stat": n.get("stat"),
+                        }
+                        for i, n in enumerate(nozzle_info)
+                    ]
                 for nozzle in nozzle_info:
                     idx = nozzle.get("id", 0)
                     if idx < len(self.state.nozzles):

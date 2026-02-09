@@ -191,6 +191,7 @@ export default {
     reconnect: '再接続',
     mqttDebug: 'MQTTデバッグ',
     activeNozzle: 'アクティブ: {{side}}ノズル',
+    nozzleRack: 'ノズルラック',
     toast: {
       printStopped: '印刷を停止しました',
       printPaused: '印刷を一時停止しました',

@@ -207,6 +207,7 @@ export default {
     reconnect: 'Neu verbinden',
     mqttDebug: 'MQTT-Debug',
     activeNozzle: 'Aktiv: {{nozzle}} Düse',
+    nozzleRack: 'Düsenhalter',
     // Firmware
     firmwareUpdate: 'Firmware-Update',
     firmwareInstructions: 'Gehen Sie auf dem Touchscreen des Druckers zu',

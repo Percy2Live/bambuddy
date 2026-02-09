@@ -410,6 +410,55 @@ function NozzleBadge({ side }: { side: 'L' | 'R' }) {
   );
 }
 
+// H2C Nozzle Rack Card — 2×3 grid showing 6-position tool-changer dock
+function NozzleRackCard({ slots }: { slots: import('../api/client').NozzleRackSlot[] }) {
+  const { t } = useTranslation();
+  // Filter to dock slots only (exclude the mounted/active entry which is typically id=0 or stat indicates mounted)
+  // Show up to 6 dock positions
+  const dockSlots = slots.slice(0, 6);
+
+  return (
+    <div className="text-center px-2 py-1.5 bg-bambu-dark rounded-lg" style={{ minWidth: '80px' }}>
+      <p className="text-[9px] text-bambu-gray mb-0.5">{t('printers.nozzleRack')}</p>
+      <div className="grid grid-cols-3 gap-0.5">
+        {dockSlots.map((slot, i) => {
+          const isEmpty = !slot.nozzle_diameter && !slot.nozzle_type;
+          const isMounted = slot.stat === 1;
+          // Type abbreviation: S=stainless, H=hardened
+          const typeAbbr = slot.nozzle_type?.includes('hardened') ? 'H' : slot.nozzle_type?.includes('stainless') ? 'S' : '';
+
+          return (
+            <div
+              key={slot.id ?? i}
+              className={`rounded px-0.5 py-0.5 text-center ${
+                isEmpty
+                  ? 'bg-bambu-dark-tertiary/30 opacity-40'
+                  : isMounted
+                    ? 'bg-green-900/40 ring-1 ring-green-500/60'
+                    : 'bg-bambu-dark-tertiary/50'
+              }`}
+              title={isEmpty ? `Slot ${i + 1}: empty` : `Slot ${i + 1}: ${slot.nozzle_diameter}mm ${slot.nozzle_type || ''} ${isMounted ? '(mounted)' : ''}`}
+            >
+              {isEmpty ? (
+                <p className="text-[9px] text-bambu-gray">—</p>
+              ) : (
+                <>
+                  <p className={`text-[10px] font-medium ${isMounted ? 'text-green-400' : 'text-white'}`}>
+                    {slot.nozzle_diameter || '?'}
+                  </p>
+                  {typeAbbr && (
+                    <p className="text-[8px] text-bambu-gray leading-none">{typeAbbr}</p>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Water drop SVG - empty outline (Bambu Lab style from bambu-humidity)
 function WaterDropEmpty({ className }: { className?: string }) {
   return (
@@ -2008,6 +2057,10 @@ function PrinterCard({
                       <p className="text-[9px] text-bambu-gray">{t('printers.temperatures.nozzle')}</p>
                       <p className={`text-[11px] font-bold ${activeNozzle === 'R' ? 'text-amber-400' : 'text-gray-500'}`}>R</p>
                     </div>
+                  )}
+                  {/* H2C nozzle rack (tool-changer dock) */}
+                  {status.nozzle_rack && status.nozzle_rack.length > 0 && (
+                    <NozzleRackCard slots={status.nozzle_rack} />
                   )}
                 </div>
               );

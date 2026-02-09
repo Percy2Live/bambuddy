@@ -19,6 +19,7 @@ from backend.app.schemas.printer import (
     AMSUnit,
     HMSErrorResponse,
     NozzleInfoResponse,
+    NozzleRackSlot,
     PrinterCreate,
     PrinterResponse,
     PrinterStatus,
@@ -360,6 +361,18 @@ async def get_printer_status(
         for n in (state.nozzles or [])
     ]
 
+    # H2C nozzle rack (tool-changer dock positions)
+    nozzle_rack = [
+        NozzleRackSlot(
+            id=n.get("id", 0),
+            nozzle_type=n.get("type", ""),
+            nozzle_diameter=n.get("diameter", ""),
+            wear=n.get("wear"),
+            stat=n.get("stat"),
+        )
+        for n in (state.nozzle_rack or [])
+    ]
+
     # Convert print options to response format
     print_options = PrintOptionsResponse(
         spaghetti_detector=state.print_options.spaghetti_detector,
@@ -423,6 +436,7 @@ async def get_printer_status(
         ipcam=state.ipcam,
         wifi_signal=state.wifi_signal,
         nozzles=nozzles,
+        nozzle_rack=nozzle_rack,
         print_options=print_options,
         stg_cur=state.stg_cur,
         stg_cur_name=get_derived_status_name(state, printer.model),

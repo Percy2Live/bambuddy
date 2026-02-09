@@ -129,6 +129,14 @@ export interface NozzleInfo {
   nozzle_diameter: string;  // e.g., "0.4"
 }
 
+export interface NozzleRackSlot {
+  id: number;
+  nozzle_type: string;
+  nozzle_diameter: string;
+  wear: number | null;
+  stat: number | null;  // Nozzle status (e.g. mounted/docked)
+}
+
 export interface PrintOptions {
   // Core AI detectors
   spaghetti_detector: boolean;
@@ -186,6 +194,7 @@ export interface PrinterStatus {
   ipcam: boolean;  // Live view enabled
   wifi_signal: number | null;  // WiFi signal strength in dBm
   nozzles: NozzleInfo[];  // Nozzle hardware info (index 0=left/primary, 1=right)
+  nozzle_rack: NozzleRackSlot[];  // H2C 6-nozzle tool-changer rack
   print_options: PrintOptions | null;  // AI detection and print options
   // Calibration stage tracking
   stg_cur: number;  // Current stage number (-1 = not calibrating)

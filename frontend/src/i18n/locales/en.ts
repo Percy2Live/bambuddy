@@ -207,6 +207,7 @@ export default {
     reconnect: 'Reconnect',
     mqttDebug: 'MQTT Debug',
     activeNozzle: 'Active: {{nozzle}} nozzle',
+    nozzleRack: 'Nozzle Rack',
     // Firmware
     firmwareUpdate: 'Firmware Update',
     firmwareInstructions: 'On the printer\'s touchscreen, go to',

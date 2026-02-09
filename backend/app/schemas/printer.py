@@ -145,6 +145,16 @@ class NozzleInfoResponse(BaseModel):
     nozzle_diameter: str = ""  # e.g., "0.4"
 
 
+class NozzleRackSlot(BaseModel):
+    """H2C nozzle rack slot (6-position tool-changer dock)."""
+
+    id: int = 0
+    nozzle_type: str = ""
+    nozzle_diameter: str = ""
+    wear: int | None = None
+    stat: int | None = None  # Nozzle status (e.g. mounted/docked)
+
+
 class PrintOptionsResponse(BaseModel):
     """AI detection and print options from xcam data."""
 
@@ -191,6 +201,7 @@ class PrinterStatus(BaseModel):
     ipcam: bool = False  # Live view enabled
     wifi_signal: int | None = None  # WiFi signal strength in dBm
     nozzles: list[NozzleInfoResponse] = []  # Nozzle hardware info (index 0=left/primary, 1=right)
+    nozzle_rack: list[NozzleRackSlot] = []  # H2C 6-nozzle tool-changer rack
     print_options: PrintOptionsResponse | None = None  # AI detection and print options
     # Calibration stage tracking
     stg_cur: int = -1  # Current stage number (-1 = not calibrating)
