@@ -530,8 +530,8 @@ function NozzleSlotHoverCard({ slot, index, children }: {
                   </span>
                 </div>
 
-                {/* Wear (hide if null/0) */}
-                {slot.wear != null && slot.wear > 0 && (
+                {/* Wear (hide if null) */}
+                {slot.wear != null && (
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] uppercase tracking-wider text-bambu-gray font-medium">{t('printers.nozzleWear')}</span>
                     <span className="text-xs text-white font-semibold">{slot.wear}%</span>
