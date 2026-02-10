@@ -380,6 +380,16 @@ export function SettingsPage() {
     },
   });
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: (userId: number) => api.resetUserPassword({ user_id: userId }),
+    onSuccess: (response) => {
+      showToast(response.message, 'success');
+    },
+    onError: (error: Error) => {
+      showToast(error.message, 'error');
+    },
+  });
+
   // Function to initiate user deletion with item count check
   const handleDeleteUserClick = async (userId: number) => {
     setDeleteUserId(userId);
@@ -501,6 +511,7 @@ export function SettingsPage() {
     setUserFormData({
       username: userToEdit.username,
       password: '',
+      email: userToEdit.email || '',
       confirmPassword: '',
       role: userToEdit.role,
       group_ids: userToEdit.groups?.map(g => g.id) || [],
@@ -946,7 +957,7 @@ export function SettingsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-1 mb-6 border-b border-bambu-dark-tertiary overflow-y-auto max-h-32">
+      <div className="flex flex-wrap gap-1 mb-6 border-b border-bambu-dark-tertiary">
         <button
           onClick={() => handleTabChange('general')}
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
@@ -3952,10 +3963,29 @@ export function SettingsPage() {
 
                 {/* Info box about auto-generated password when Advanced Auth is enabled */}
                 {advancedAuthStatus?.advanced_auth_enabled && (
-                  <div className="bg-bambu-dark-secondary/50 border border-bambu-green/20 rounded-lg p-3">
+                  <div className="bg-bambu-dark-secondary/50 border border-bambu-green/20 rounded-lg p-3 space-y-3">
                     <p className="text-sm text-bambu-gray">
                       {t('users.form.passwordManagedByAdvancedAuth') || 'Password is managed by Advanced Authentication. Use "Reset Password" to send a new password to the user via email.'}
                     </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => editingUserId && resetPasswordMutation.mutate(editingUserId)}
+                      disabled={resetPasswordMutation.isPending || !userFormData.email}
+                      className="w-full"
+                    >
+                      {resetPasswordMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {t('users.form.resettingPassword') || 'Resetting Password...'}
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-4 h-4" />
+                          {t('users.form.resetPassword') || 'Reset Password'}
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
 
