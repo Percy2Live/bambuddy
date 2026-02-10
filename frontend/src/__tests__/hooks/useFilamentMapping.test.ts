@@ -134,7 +134,7 @@ describe('buildLoadedFilaments', () => {
     const result = buildLoadedFilaments(status);
 
     expect(result[0].isHt).toBe(true);
-    expect(result[0].globalTrayId).toBe(512);  // 128 * 4 + 0
+    expect(result[0].globalTrayId).toBe(128);  // AMS-HT uses ams_id directly
   });
 });
 

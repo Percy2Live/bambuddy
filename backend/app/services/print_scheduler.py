@@ -511,7 +511,8 @@ class PrintScheduler:
                     # Normalize color: remove alpha, add hash
                     color = self._normalize_color(tray_color)
                     # Calculate global tray ID
-                    global_tray_id = ams_id * 4 + tray_id
+                    # AMS-HT units have IDs starting at 128 with a single tray
+                    global_tray_id = ams_id if ams_id >= 128 else ams_id * 4 + tray_id
 
                     filaments.append(
                         {

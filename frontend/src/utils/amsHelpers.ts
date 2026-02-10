@@ -78,10 +78,10 @@ export function formatSlotLabel(
 /**
  * Calculate global tray ID for MQTT command.
  * Used in the ams_mapping array sent to the printer.
- * @param amsId - AMS unit ID
+ * @param amsId - AMS unit ID (0-3 for regular AMS, 128+ for AMS-HT)
  * @param trayId - Tray/slot ID within the AMS unit
  * @param isExternal - Whether this is the external spool holder
- * @returns Global tray ID (0-15 for AMS, 254 for external)
+ * @returns Global tray ID (0-15 for AMS, 128+ for AMS-HT, 254 for external)
  */
 export function getGlobalTrayId(
   amsId: number,
@@ -89,6 +89,8 @@ export function getGlobalTrayId(
   isExternal: boolean
 ): number {
   if (isExternal) return 254;
+  // AMS-HT units have IDs starting at 128 with a single tray — use ID directly
+  if (amsId >= 128) return amsId;
   return amsId * 4 + trayId;
 }
 

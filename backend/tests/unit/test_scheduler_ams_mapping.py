@@ -129,7 +129,7 @@ class TestBuildLoadedFilaments:
         result = scheduler._build_loaded_filaments(MockStatus())
         assert len(result) == 1
         assert result[0]["is_ht"] is True
-        assert result[0]["global_tray_id"] == 512  # 128 * 4 + 0
+        assert result[0]["global_tray_id"] == 128  # AMS-HT uses ams_id directly
 
     def test_build_loaded_filaments_with_external(self, scheduler):
         """Should include external spool."""
