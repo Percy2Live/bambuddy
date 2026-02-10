@@ -926,7 +926,7 @@ class TestVirtualPrinterManagerServerModeIPOverride:
             patch.object(
                 manager._cert_service,
                 "generate_certificates",
-                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),
+                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),  # nosec B108
             ),
         ):
             mock_ssdp_cls.return_value.start = AsyncMock()
@@ -955,7 +955,7 @@ class TestVirtualPrinterManagerServerModeIPOverride:
             patch.object(
                 manager._cert_service,
                 "generate_certificates",
-                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),
+                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),  # nosec B108
             ) as mock_gen_certs,
         ):
             await manager._start_server_mode()
@@ -978,7 +978,7 @@ class TestVirtualPrinterManagerServerModeIPOverride:
             patch.object(
                 manager._cert_service,
                 "generate_certificates",
-                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),
+                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),  # nosec B108
             ) as mock_gen_certs,
         ):
             await manager._start_server_mode()

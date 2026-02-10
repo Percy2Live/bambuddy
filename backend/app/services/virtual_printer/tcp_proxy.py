@@ -390,8 +390,8 @@ class FTPTLSProxy(TLSProxy):
 
         # Determine our local IP from the control connection socket
         sockname = client_writer.get_extra_info("sockname")
-        local_ip = sockname[0] if sockname else "0.0.0.0"
-        if local_ip in ("0.0.0.0", "::"):
+        local_ip = sockname[0] if sockname else "0.0.0.0"  # nosec B104
+        if local_ip in ("0.0.0.0", "::"):  # nosec B104
             local_ip = "127.0.0.1"
 
         # Connect to target printer with TLS

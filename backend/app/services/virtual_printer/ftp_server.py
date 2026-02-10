@@ -276,7 +276,7 @@ class FTPSession:
                 sockname = self.writer.get_extra_info("sockname")
                 ip = sockname[0] if sockname else "127.0.0.1"
                 # 0.0.0.0 is not routable — fall back to control connection IP
-                if ip == "0.0.0.0":
+                if ip == "0.0.0.0":  # nosec B104
                     ip = "127.0.0.1"
 
             # Format IP and port for PASV response
