@@ -373,6 +373,7 @@ async def get_printer_status(
             serial_number=n.get("serial_number", ""),
             filament_color=n.get("filament_color", ""),
             filament_id=n.get("filament_id", ""),
+            filament_type=n.get("filament_type", ""),
         )
         for n in (state.nozzle_rack or [])
     ]

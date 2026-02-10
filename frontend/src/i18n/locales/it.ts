@@ -215,6 +215,10 @@ export default {
     nozzleSerial: 'Seriale',
     nozzleHardenedSteel: 'Acciaio Temprato',
     nozzleStainlessSteel: 'Acciaio Inox',
+    nozzleTungstenCarbide: 'Carburo di Tungsteno',
+    nozzleFlow: 'Flusso',
+    nozzleHighFlow: 'Alto Flusso',
+    nozzleStandardFlow: 'Standard',
     // Firmware
     firmwareUpdate: 'Aggiornamento Firmware',
     firmwareInstructions: 'Sul touchscreen della stampante, vai a',

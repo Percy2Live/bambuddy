@@ -1749,10 +1749,10 @@ class BambuMQTTClient:
             nozzle_info = nozzle_data.get("info", [])
             if isinstance(nozzle_info, list):
                 # H2C tool-changer: >2 entries means nozzle rack
-                # nozzle_info contains L/R nozzle heads (id 0,1) AND rack slots (id >= 16).
-                # Filter out L/R heads — they're already tracked in self.state.nozzles.
+                # nozzle_info contains L/R nozzle heads (id 0,1) AND rack slots.
+                # Include ALL entries so mounted nozzles (on hotend) appear in the rack
+                # display with their full data (wear, max_temp, serial, etc.).
                 if len(nozzle_info) > 2:
-                    rack_entries = [n for n in nozzle_info if n.get("id", 0) >= 2]
                     self.state.nozzle_rack = sorted(
                         [
                             {
@@ -1765,19 +1765,19 @@ class BambuMQTTClient:
                                 "serial_number": str(n.get("serial_number", "")),
                                 "filament_color": str(n.get("filament_colour", "")),
                                 "filament_id": str(n.get("filament_id", "")),
+                                "filament_type": str(n.get("tray_type", "") or n.get("filament_type", "")),
                             }
-                            for i, n in enumerate(rack_entries)
+                            for i, n in enumerate(nozzle_info)
                         ],
                         key=lambda x: x["id"],
                     )
                     if not hasattr(self, "_nozzle_rack_logged") and nozzle_info:
                         self._nozzle_rack_logged = True
                         logger.info(
-                            "[%s] Nozzle info: %d entries, IDs: %s, rack IDs: %s",
+                            "[%s] Nozzle info: %d entries, IDs: %s",
                             self.serial_number,
                             len(nozzle_info),
                             [n.get("id") for n in nozzle_info],
-                            [n.get("id") for n in rack_entries],
                         )
                 for nozzle in nozzle_info:
                     idx = nozzle.get("id", 0)

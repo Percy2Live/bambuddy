@@ -157,6 +157,7 @@ class NozzleRackSlot(BaseModel):
     serial_number: str = ""  # Nozzle serial number
     filament_color: str = ""  # RGBA hex ("00000000" = no filament)
     filament_id: str = ""  # Bambu filament ID
+    filament_type: str = ""  # Material type (e.g. "PLA", "PETG")
 
 
 class PrintOptionsResponse(BaseModel):

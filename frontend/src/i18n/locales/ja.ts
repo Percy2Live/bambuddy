@@ -199,6 +199,10 @@ export default {
     nozzleSerial: 'シリアル',
     nozzleHardenedSteel: '焼入れ鋼',
     nozzleStainlessSteel: 'ステンレス鋼',
+    nozzleTungstenCarbide: 'タングステンカーバイド',
+    nozzleFlow: 'フロー',
+    nozzleHighFlow: 'ハイフロー',
+    nozzleStandardFlow: 'スタンダード',
     toast: {
       printStopped: '印刷を停止しました',
       printPaused: '印刷を一時停止しました',

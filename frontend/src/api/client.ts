@@ -139,6 +139,7 @@ export interface NozzleRackSlot {
   serial_number: string;
   filament_color: string;  // RGBA hex ("00000000" = no filament)
   filament_id: string;
+  filament_type: string;  // Material type (e.g. "PLA", "PETG")
 }
 
 export interface PrintOptions {
