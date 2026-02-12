@@ -1170,16 +1170,30 @@ function CoverImage({ url, printName }: { url: string | null; printName?: string
   const [error, setError] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
 
+  // Cache-bust the image URL when the print name changes so the browser
+  // fetches the new cover instead of serving the stale cached image.
+  const cacheBustedUrl = useMemo(() => {
+    if (!url) return null;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}v=${encodeURIComponent(printName || Date.now().toString())}`;
+  }, [url, printName]);
+
+  // Reset loaded/error state when the image URL changes
+  useEffect(() => {
+    setLoaded(false);
+    setError(false);
+  }, [cacheBustedUrl]);
+
   return (
     <>
       <div
-        className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-bambu-dark-tertiary flex items-center justify-center ${url && loaded ? 'cursor-pointer' : ''}`}
-        onClick={() => url && loaded && setShowOverlay(true)}
+        className={`w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-bambu-dark-tertiary flex items-center justify-center ${cacheBustedUrl && loaded ? 'cursor-pointer' : ''}`}
+        onClick={() => cacheBustedUrl && loaded && setShowOverlay(true)}
       >
-        {url && !error ? (
+        {cacheBustedUrl && !error ? (
           <>
             <img
-              src={url}
+              src={cacheBustedUrl}
               alt={t('printers.printPreview')}
               className={`w-full h-full object-cover ${loaded ? 'block' : 'hidden'}`}
               onLoad={() => setLoaded(true)}
@@ -1193,14 +1207,14 @@ function CoverImage({ url, printName }: { url: string | null; printName?: string
       </div>
 
       {/* Cover Image Overlay */}
-      {showOverlay && url && (
+      {showOverlay && cacheBustedUrl && (
         <div
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-8"
           onClick={() => setShowOverlay(false)}
         >
           <div className="relative max-w-2xl max-h-full">
             <img
-              src={url}
+              src={cacheBustedUrl}
               alt={t('printers.printPreview')}
               className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
             />
