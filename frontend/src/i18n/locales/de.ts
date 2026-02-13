@@ -124,6 +124,7 @@ export default {
     nozzleCount: 'Düsenanzahl',
     autoArchive: 'Automatische Archivierung',
     status: {
+      available: 'Verfügbar',
       idle: 'Bereit',
       printing: 'Druckt',
       paused: 'Pausiert',
@@ -163,6 +164,7 @@ export default {
     },
     // Controls
     hideOffline: 'Offline ausblenden',
+    nextAvailable: 'Nächster verfügbar',
     powerOn: 'Einschalten',
     offlinePrintersWithPlugs: 'Offline-Drucker mit Smart-Plugs',
     noPrintersConfigured: 'Noch keine Drucker konfiguriert',
@@ -980,6 +982,7 @@ export default {
     removeFromPrinter: 'Von diesem Drucker entfernen',
     // Types
     types: {
+      lubricateCarbonRods: 'Karbonstäbe schmieren',
       lubricateRails: 'Linearschienen schmieren',
       cleanNozzle: 'Düse/Hotend reinigen',
       checkBelts: 'Riemenspannung prüfen',
@@ -988,6 +991,7 @@ export default {
       checkCooling: 'Kühlungslüfter prüfen',
       generalInspection: 'Allgemeine Inspektion',
       cleanCarbonRods: 'Kohlenstoffstangen reinigen',
+      cleanLinearRails: 'Linearschienen reinigen',
       checkPtfeTube: 'PTFE-Schlauch prüfen',
       replaceHepaFilter: 'HEPA-Filter ersetzen',
       replaceCarbonFilter: 'Aktivkohlefilter ersetzen',
@@ -2632,6 +2636,10 @@ export default {
     sameTypeDifferentColor: 'Gleicher Typ, andere Farbe',
     filamentTypeNotLoaded: 'Filamenttyp nicht geladen',
     openCalendar: 'Kalender öffnen',
+    leftNozzle: 'L',
+    rightNozzle: 'R',
+    leftNozzleTooltip: 'Linke Düse',
+    rightNozzleTooltip: 'Rechte Düse',
   },
 
   // Backup
@@ -2973,6 +2981,7 @@ export default {
 
   // Maintenance type descriptions (built-in)
   maintenanceDescriptions: {
+    lubricateCarbonRods: 'Schmiermittel auf Karbonstäbe für sanfte Bewegung auftragen',
     lubricateRails: 'Schmiermittel auf Linearschienen für sanfte Bewegung auftragen',
     cleanNozzle: 'Hotend und Düse reinigen, um Verstopfungen zu verhindern',
     checkBelts: 'Riemenspannung für präzise Drucke überprüfen',
@@ -2981,6 +2990,7 @@ export default {
     checkCooling: 'Sicherstellen, dass Lüfter ordnungsgemäß funktionieren',
     generalInspection: 'Allgemeine Druckerinspektion',
     cleanCarbonRods: 'Karbonstäbe reinigen, um Reibung zu reduzieren',
+    cleanLinearRails: 'Linearschienen abwischen, um Staub und Schmutz zu entfernen',
     checkPtfeTube: 'PTFE-Schlauch auf Verschleiß oder Beschädigung prüfen',
     replaceHepaFilter: 'HEPA-Filter für Luftqualität ersetzen',
     replaceCarbonFilter: 'Aktivkohlefilter ersetzen',

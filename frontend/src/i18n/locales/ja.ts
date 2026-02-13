@@ -133,6 +133,7 @@ export default {
     nozzleCount: 'ノズル数',
     autoArchive: '自動アーカイブ',
     status: {
+      available: '利用可能',
       idle: '待機中',
       printing: '印刷中',
       paused: '一時停止',
@@ -167,6 +168,7 @@ export default {
       extraLarge: '特大',
     },
     hideOffline: 'オフラインを非表示',
+    nextAvailable: '次に完了',
     powerOn: '電源オン',
     noPrintersConfigured: 'プリンターが設定されていません',
     readyToPrint: '印刷可能',
@@ -1015,6 +1017,7 @@ export default {
     noPrintersAssigned: 'プリンター未割り当て',
     removeFromPrinter: 'このプリンターから削除',
     types: {
+      lubricateCarbonRods: 'カーボンロッドの潤滑',
       lubricateRails: 'リニアレールの潤滑',
       cleanNozzle: 'ノズル/ホットエンドの清掃',
       checkBelts: 'ベルト張力の確認',
@@ -1023,6 +1026,7 @@ export default {
       checkCooling: '冷却ファンの確認',
       generalInspection: '総合点検',
       cleanCarbonRods: 'カーボンロッドの清掃',
+      cleanLinearRails: 'リニアレールの清掃',
       checkPtfeTube: 'PTFEチューブの確認',
       replaceHepaFilter: 'HEPAフィルター交換',
       replaceCarbonFilter: 'カーボンフィルター交換',
@@ -2552,6 +2556,10 @@ export default {
     printerBusy: 'プリンターは使用中です',
     printerOffline: 'プリンターはオフラインです',
     cancel: 'キャンセル',
+    leftNozzle: 'L',
+    rightNozzle: 'R',
+    leftNozzleTooltip: '左ノズル',
+    rightNozzleTooltip: '右ノズル',
   },
   backup: {
     restoreBackup: 'バックアップの復元',
@@ -2856,6 +2864,7 @@ export default {
     },
   },
   maintenanceDescriptions: {
+    lubricateCarbonRods: 'カーボンロッドに潤滑剤を塗布してスムーズな動きを確保',
     lubricateRails: 'リニアレールの潤滑',
     cleanNozzle: 'ノズル/ホットエンドの清掃',
     checkBelts: 'ベルト張力の確認',
@@ -2864,6 +2873,7 @@ export default {
     checkCooling: '冷却ファンの確認',
     generalInspection: '総合点検',
     cleanCarbonRods: 'カーボンロッドの清掃',
+    cleanLinearRails: 'リニアレールを拭いてほこりや汚れを除去',
     checkPtfeTube: 'PTFEチューブの確認',
     replaceHepaFilter: 'HEPAフィルター交換',
     replaceCarbonFilter: 'カーボンフィルター交換',

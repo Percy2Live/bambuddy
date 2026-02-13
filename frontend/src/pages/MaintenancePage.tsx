@@ -140,14 +140,19 @@ function getMaintenanceWikiUrl(typeName: string, printerModel: string | null): s
   const isP2S = model.includes('P2S');
 
   switch (typeName) {
-    case 'Lubricate Linear Rails':
+    case 'Lubricate Carbon Rods':
+      // X1, P1, P2S series have carbon rods
       if (isX1) return 'https://wiki.bambulab.com/en/x1/maintenance/basic-maintenance';
       if (isP1) return 'https://wiki.bambulab.com/en/p1/maintenance/p1p-maintenance';
+      if (isP2S) return 'https://wiki.bambulab.com/en/p2s/maintenance/belt-tension';
+      return null;
+
+    case 'Lubricate Linear Rails':
+      // A1 and H2 series have linear rails
       if (isA1Mini) return 'https://wiki.bambulab.com/en/a1-mini/maintenance/lubricate-y-axis';
       if (isA1) return 'https://wiki.bambulab.com/en/a1/maintenance/lubricate-y-axis';
       if (isH2) return 'https://wiki.bambulab.com/en/h2/maintenance/x-axis-lubrication';
-      if (isP2S) return 'https://wiki.bambulab.com/en/p2s/maintenance/belt-tension'; // P2S maintenance page
-      return 'https://wiki.bambulab.com/en/general/lead-screws-lubrication';
+      return null;
 
     case 'Clean Nozzle/Hotend':
       if (isX1 || isP1) return 'https://wiki.bambulab.com/en/x1/troubleshooting/nozzle-clog';
@@ -168,11 +173,16 @@ function getMaintenanceWikiUrl(typeName: string, printerModel: string | null): s
       return 'https://wiki.bambulab.com/en/x1/maintenance/belt-tension';
 
     case 'Clean Carbon Rods':
-      // Only X1 and P1 series have carbon rods
-      if (isX1 || isP1) return 'https://wiki.bambulab.com/en/general/carbon-rods-clearance';
-      // A1, H2, P2S don't have carbon rods - return null
-      if (isA1Mini || isA1 || isH2 || isP2S) return null;
-      return 'https://wiki.bambulab.com/en/general/carbon-rods-clearance';
+      // X1, P1, P2S series have carbon rods
+      if (isX1 || isP1 || isP2S) return 'https://wiki.bambulab.com/en/general/carbon-rods-clearance';
+      return null;
+
+    case 'Clean Linear Rails':
+      // A1 and H2 series have linear rails
+      if (isA1Mini) return 'https://wiki.bambulab.com/en/a1-mini/maintenance/lubricate-y-axis';
+      if (isA1) return 'https://wiki.bambulab.com/en/a1/maintenance/lubricate-y-axis';
+      if (isH2) return 'https://wiki.bambulab.com/en/h2/maintenance/x-axis-lubrication';
+      return null;
 
     case 'Clean Build Plate':
       // Same for all printers
@@ -381,7 +391,7 @@ function PrinterSection({
   hasPermission: (permission: Permission) => boolean;
   t: TFunction;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [editingHours, setEditingHours] = useState(false);
   const [hoursInput, setHoursInput] = useState(overview.total_print_hours.toFixed(1));
 

@@ -72,7 +72,7 @@ Perfect for remote print farms, traveling makers, or accessing your home printer
 - Duplicate detection & full-text search
 - Photo attachments & failure analysis
 - Timelapse editor (trim, speed, music)
-- Re-print to any connected printer with AMS mapping (auto-match or manual slot selection, multi-plate support)
+- Re-print to any connected printer with AMS mapping (auto-match or manual slot selection, multi-plate support, nozzle-aware matching for dual-nozzle H2D/H2D Pro)
 - Plate thumbnail browsing for multi-plate archives (hover to navigate between plates)
 - Archive comparison (side-by-side diff)
 - Tag management (rename/delete across all archives)
@@ -140,15 +140,17 @@ Perfect for remote print farms, traveling makers, or accessing your home printer
 - Email, Pushover, ntfy
 - Custom webhooks
 - Quiet hours & daily digest
-- Customizable message templates
+- Customizable message templates with per-filament usage details
 - Print finish photo URL in notifications
+- Filament usage and progress in failed/cancelled print notifications
 - HMS error alerts (AMS, nozzle, etc.)
 - Build plate detection alerts
 - Queue events (waiting, skipped, failed)
 
 ### 🧵 Spool Inventory
 - Built-in spool inventory with AMS slot assignment, usage tracking, and remaining weight management
-- Automatic filament consumption tracking: AMS RFID for Bambu Lab spools, 3MF estimates for third-party spools
+- Automatic filament consumption tracking: 3MF slicer estimates for all spools (primary), AMS remain% delta as fallback
+- Per-layer gcode accuracy for partial prints (failed/cancelled), with linear scaling fallback
 - Spool catalog, color catalog, PA profile matching, and low-stock alerts
 
 ### 🔧 Integrations
@@ -200,7 +202,7 @@ Perfect for remote print farms, traveling makers, or accessing your home printer
 </tr>
 </table>
 
-**Plus:** Configurable slicer (Bambu Studio / OrcaSlicer) • Customizable themes (style, background, accent) • Mobile responsive • Keyboard shortcuts • Multi-language (EN/DE) • Auto updates • Database backup/restore • System info dashboard
+**Plus:** Configurable slicer (Bambu Studio / OrcaSlicer) • Customizable themes (style, background, accent) • Mobile responsive • Keyboard shortcuts • Multi-language (EN/DE/JA/IT) • Auto updates • Database backup/restore • System info dashboard
 
 ---
 

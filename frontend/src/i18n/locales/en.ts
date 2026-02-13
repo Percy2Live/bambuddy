@@ -124,6 +124,7 @@ export default {
     nozzleCount: 'Nozzle Count',
     autoArchive: 'Auto Archive',
     status: {
+      available: 'Available',
       idle: 'Idle',
       printing: 'Printing',
       paused: 'Paused',
@@ -163,6 +164,7 @@ export default {
     },
     // Controls
     hideOffline: 'Hide offline',
+    nextAvailable: 'Next available',
     powerOn: 'Power On',
     offlinePrintersWithPlugs: 'Offline printers with smart plugs',
     noPrintersConfigured: 'No printers configured yet',
@@ -980,6 +982,7 @@ export default {
     removeFromPrinter: 'Remove from this printer',
     // Types
     types: {
+      lubricateCarbonRods: 'Lubricate Carbon Rods',
       lubricateRails: 'Lubricate Linear Rails',
       cleanNozzle: 'Clean Nozzle/Hotend',
       checkBelts: 'Check Belt Tension',
@@ -988,6 +991,7 @@ export default {
       checkCooling: 'Check Cooling Fans',
       generalInspection: 'General Inspection',
       cleanCarbonRods: 'Clean Carbon Rods',
+      cleanLinearRails: 'Clean Linear Rails',
       checkPtfeTube: 'Check PTFE Tube',
       replaceHepaFilter: 'Replace HEPA Filter',
       replaceCarbonFilter: 'Replace Carbon Filter',
@@ -2636,6 +2640,10 @@ export default {
     sameTypeDifferentColor: 'Same type, different color',
     filamentTypeNotLoaded: 'Filament type not loaded',
     openCalendar: 'Open calendar',
+    leftNozzle: 'L',
+    rightNozzle: 'R',
+    leftNozzleTooltip: 'Left nozzle',
+    rightNozzleTooltip: 'Right nozzle',
   },
 
   // Backup
@@ -2978,6 +2986,7 @@ export default {
 
   // Maintenance type descriptions (built-in)
   maintenanceDescriptions: {
+    lubricateCarbonRods: 'Apply lubricant to carbon rods for smooth motion',
     lubricateRails: 'Apply lubricant to linear rails for smooth motion',
     cleanNozzle: 'Clean hotend and nozzle to prevent clogs',
     checkBelts: 'Verify belt tension for accurate prints',
@@ -2986,6 +2995,7 @@ export default {
     checkCooling: 'Ensure cooling fans are working properly',
     generalInspection: 'General printer inspection',
     cleanCarbonRods: 'Clean carbon rods to reduce friction',
+    cleanLinearRails: 'Wipe linear rails to remove dust and debris',
     checkPtfeTube: 'Inspect PTFE tube for wear or damage',
     replaceHepaFilter: 'Replace HEPA filter for air quality',
     replaceCarbonFilter: 'Replace activated carbon filter',
