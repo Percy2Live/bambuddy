@@ -2651,10 +2651,10 @@ export default {
     rightNozzle: 'D',
     leftNozzleTooltip: 'Buse gauche',
     rightNozzleTooltip: 'Buse droite',
-    insufficientFilamentTitle: 'Not enough filament',
-    insufficientFilamentMessage: 'Some assigned spools have less filament remaining than this print needs:',
-    insufficientFilamentLine: '{{printer}} - {{slot}}: needs {{required}}g, remaining {{remaining}}g',
-    printAnyway: 'Print anyway',
+    insufficientFilamentTitle: 'Filament insuffisant',
+    insufficientFilamentMessage: 'Certaines bobines assignées ont moins de filament restant que nécessaire pour cette impression :',
+    insufficientFilamentLine: '{{printer}} - {{slot}} : nécessite {{required}}g, restant {{remaining}}g',
+    printAnyway: 'Imprimer quand même',
   },
 
   // Backup
