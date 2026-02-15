@@ -623,6 +623,7 @@ export default {
       slicedFor: '{{model}}用にスライス',
       uploadedBy: 'アップロード者',
       noPermissionReprint: '再印刷する権限がありません',
+      noFileForReprint: '3MFファイルがありません — 印刷記録時にプリンターからファイルをダウンロードできませんでした',
       noPermissionDelete: 'アーカイブを削除する権限がありません',
       openInBambuStudio: 'スライサーで開く',
       openInBambuStudioToSlice: 'スライサーでスライス',

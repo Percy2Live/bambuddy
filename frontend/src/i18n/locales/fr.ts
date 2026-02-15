@@ -610,6 +610,7 @@ export default {
       slicedFor: 'Découpé pour {{model}}',
       uploadedBy: 'Téléversé par',
       noPermissionReprint: 'Pas d\'autorisation de réimpression',
+      noFileForReprint: 'Aucun fichier 3MF disponible — le fichier n\'a pas pu être téléchargé depuis l\'imprimante lors de l\'enregistrement',
       noPermissionEdit: 'Pas d\'autorisation de modification',
       noPermissionDelete: 'Pas d\'autorisation de suppression',
       reprint: 'Réimprimer',

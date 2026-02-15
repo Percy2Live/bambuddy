@@ -303,15 +303,15 @@ function ArchiveCard({
         label: t('archives.menu.print'),
         icon: <Printer className="w-4 h-4" />,
         onClick: () => setShowReprint(true),
-        disabled: !canModify('archives', 'reprint', archive.created_by_id),
-        title: !canModify('archives', 'reprint', archive.created_by_id) ? t('archives.permission.noReprint') : undefined,
+        disabled: !archive.file_path || !canModify('archives', 'reprint', archive.created_by_id),
+        title: !archive.file_path ? t('archives.card.noFileForReprint') : !canModify('archives', 'reprint', archive.created_by_id) ? t('archives.permission.noReprint') : undefined,
       },
       {
         label: t('archives.menu.schedule'),
         icon: <Calendar className="w-4 h-4" />,
         onClick: () => setShowSchedule(true),
-        disabled: !hasPermission('queue:create'),
-        title: !hasPermission('queue:create') ? t('archives.permission.noAddToQueue') : undefined,
+        disabled: !archive.file_path || !hasPermission('queue:create'),
+        title: !archive.file_path ? t('archives.card.noFileForReprint') : !hasPermission('queue:create') ? t('archives.permission.noAddToQueue') : undefined,
       },
       {
         label: t('archives.menu.openInBambuStudio'),
@@ -321,6 +321,8 @@ function ArchiveCard({
           const downloadUrl = `${window.location.origin}${api.getArchiveForSlicer(archive.id, filename)}`;
           openInSlicer(downloadUrl, preferredSlicer);
         },
+        disabled: !archive.file_path,
+        title: !archive.file_path ? t('archives.card.noFileForReprint') : undefined,
       },
     ] : [
       {
@@ -926,8 +928,8 @@ function ArchiveCard({
                 size="sm"
                 className="flex-1 min-w-0"
                 onClick={() => setShowReprint(true)}
-                disabled={!canModify('archives', 'reprint', archive.created_by_id)}
-                title={!canModify('archives', 'reprint', archive.created_by_id) ? t('archives.card.noPermissionReprint') : undefined}
+                disabled={!archive.file_path || !canModify('archives', 'reprint', archive.created_by_id)}
+                title={!archive.file_path ? t('archives.card.noFileForReprint') : !canModify('archives', 'reprint', archive.created_by_id) ? t('archives.card.noPermissionReprint') : undefined}
               >
                 <Printer className="w-3 h-3 flex-shrink-0" />
                 <span className="hidden sm:inline">{t('archives.card.reprint')}</span>
@@ -937,8 +939,8 @@ function ArchiveCard({
                 size="sm"
                 className="flex-1 min-w-0"
                 onClick={() => setShowSchedule(true)}
-                disabled={!hasPermission('queue:create')}
-                title={!hasPermission('queue:create') ? t('archives.permission.noAddToQueue') : t('archives.card.schedulePrint')}
+                disabled={!archive.file_path || !hasPermission('queue:create')}
+                title={!archive.file_path ? t('archives.card.noFileForReprint') : !hasPermission('queue:create') ? t('archives.permission.noAddToQueue') : t('archives.card.schedulePrint')}
               >
                 <Calendar className="w-3 h-3 flex-shrink-0" />
                 <span className="hidden sm:inline">{t('archives.card.schedule')}</span>
@@ -1438,15 +1440,15 @@ function ArchiveListRow({
         label: t('archives.menu.print'),
         icon: <Printer className="w-4 h-4" />,
         onClick: () => setShowReprint(true),
-        disabled: !canModify('archives', 'reprint', archive.created_by_id),
-        title: !canModify('archives', 'reprint', archive.created_by_id) ? t('archives.permission.noReprint') : undefined,
+        disabled: !archive.file_path || !canModify('archives', 'reprint', archive.created_by_id),
+        title: !archive.file_path ? t('archives.card.noFileForReprint') : !canModify('archives', 'reprint', archive.created_by_id) ? t('archives.permission.noReprint') : undefined,
       },
       {
         label: t('archives.menu.schedule'),
         icon: <Calendar className="w-4 h-4" />,
         onClick: () => setShowSchedule(true),
-        disabled: !hasPermission('queue:create'),
-        title: !hasPermission('queue:create') ? t('archives.permission.noAddToQueue') : undefined,
+        disabled: !archive.file_path || !hasPermission('queue:create'),
+        title: !archive.file_path ? t('archives.card.noFileForReprint') : !hasPermission('queue:create') ? t('archives.permission.noAddToQueue') : undefined,
       },
       {
         label: t('archives.menu.openInBambuStudio'),
@@ -1456,6 +1458,8 @@ function ArchiveListRow({
           const downloadUrl = `${window.location.origin}${api.getArchiveForSlicer(archive.id, filename)}`;
           openInSlicer(downloadUrl, preferredSlicer);
         },
+        disabled: !archive.file_path,
+        title: !archive.file_path ? t('archives.card.noFileForReprint') : undefined,
       },
     ] : [
       {

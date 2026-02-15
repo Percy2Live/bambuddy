@@ -610,6 +610,7 @@ export default {
       slicedFor: 'Geslict für {{model}}',
       uploadedBy: 'Hochgeladen von',
       noPermissionReprint: 'Sie haben keine Berechtigung, erneut zu drucken',
+      noFileForReprint: 'Keine 3MF-Datei verfügbar — die Datei konnte beim Aufzeichnen des Drucks nicht vom Drucker heruntergeladen werden',
       noPermissionEdit: 'Sie haben keine Berechtigung, Archive zu bearbeiten',
       noPermissionDelete: 'Sie haben keine Berechtigung, Archive zu löschen',
       reprint: 'Drucken',

@@ -601,6 +601,7 @@ export default {
       slicedFor: 'Sliced per {{model}}',
       uploadedBy: 'Caricato da',
       noPermissionReprint: 'Non hai il permesso di ristampare',
+      noFileForReprint: 'Nessun file 3MF disponibile — il file non è stato scaricato dalla stampante durante la registrazione',
       noPermissionEdit: 'Non hai il permesso di modificare archivi',
       noPermissionDelete: 'Non hai il permesso di eliminare archivi',
       reprint: 'Ristampa',

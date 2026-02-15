@@ -610,6 +610,7 @@ export default {
       slicedFor: 'Sliced for {{model}}',
       uploadedBy: 'Uploaded By',
       noPermissionReprint: 'You do not have permission to reprint',
+      noFileForReprint: 'No 3MF file available — the file could not be downloaded from the printer when the print was recorded',
       noPermissionEdit: 'You do not have permission to edit archives',
       noPermissionDelete: 'You do not have permission to delete archives',
       reprint: 'Reprint',
