@@ -473,7 +473,7 @@ async def _collect_support_info() -> dict:
                 for unit in ams_units:
                     trays = unit.get("tray", [])
                     ams_tray_count += len([t for t in trays if t.get("tray_type")])
-                has_vt_tray = state.raw_data.get("vt_tray") is not None
+                has_vt_tray = bool(state.raw_data.get("vt_tray"))
 
             info["printers"].append(
                 {
