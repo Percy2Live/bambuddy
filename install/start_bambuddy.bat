@@ -20,7 +20,14 @@ REM    start_bambuddy.bat reset      Clean all & fresh start
 REM    set PORT=9000 & start_bambuddy.bat   Change port
 REM ============================================
 
-set "ROOT=%~dp0"
+REM If launched from the "install" folder, go up one level; otherwise use current directory.
+for %%I in ("%CD%") do set "CURRENT_DIR_NAME=%%~nxI"
+if /I "%CURRENT_DIR_NAME%"=="install" (
+    set "ROOT=%CD%\.."
+    cd ..
+) else (
+    set "ROOT=%CD%"
+)
 if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
 
 set "PORTABLE=%ROOT%\.portable"
