@@ -326,14 +326,14 @@ function SortableQueueItem({
   const isLibraryFile = !!item.library_file_id && !item.archive_id;
   // Fetch archive plate details
   const { data: archivePlatesData } = useQuery({
-    queryKey: ['archive', item.archive_id],
+    queryKey: ['archive-plates', item.archive_id],
     queryFn: () => api.getArchivePlates(item.archive_id!),
     enabled: !!item.archive_id && !isLibraryFile,
   });
 
   // Fetch library file plate details
   const { data: libraryPlatesData } = useQuery({
-    queryKey: ['library-file', item.library_file_id],
+    queryKey: ['library-file-plates', item.library_file_id],
     queryFn: () => api.getLibraryFilePlates(item.library_file_id!),
     enabled: isLibraryFile && !!item.library_file_id,
   });
