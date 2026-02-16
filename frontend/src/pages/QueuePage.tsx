@@ -315,11 +315,11 @@ function SortableQueueItem({
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const { data: status } = useQuery({
-  queryKey: ['printerStatus', item.printer_id],
-  queryFn: () => api.getPrinterStatus(item.printer_id!),
-  refetchInterval: 30000,
-  enabled: item.printer_id !== undefined && item.printer_id !== null,
-});
+    queryKey: ['printerStatus', item.printer_id],
+    queryFn: () => api.getPrinterStatus(item.printer_id!),
+    refetchInterval: 30000,
+    enabled: item.printer_id != null && printerState === 'printing',
+  });
   const canReorder = hasPermission('queue:reorder');
   const {
     attributes,
