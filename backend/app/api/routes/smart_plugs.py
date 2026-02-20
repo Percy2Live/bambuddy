@@ -33,6 +33,7 @@ from backend.app.services.homeassistant import homeassistant_service
 from backend.app.services.mqtt_relay import mqtt_relay
 from backend.app.services.notification_service import notification_service
 from backend.app.services.printer_manager import printer_manager
+from backend.app.services.rest_plug import rest_plug_service
 from backend.app.services.tasmota import tasmota_service
 
 logger = logging.getLogger(__name__)
@@ -557,6 +558,8 @@ async def _get_service_for_plug(plug: SmartPlug, db: AsyncSession):
         ha_settings = await get_homeassistant_settings(db)
         homeassistant_service.configure(ha_settings["ha_url"], ha_settings["ha_token"])
         return homeassistant_service
+    if plug.plug_type == "rest":
+        return rest_plug_service
     return tasmota_service
 
 
@@ -802,6 +805,33 @@ async def check_power_alerts(plug: SmartPlug, current_power: float | None, db: A
             },
         )
 
+
+
+class RestTestConnectionRequest(BaseModel):
+    """Request to test a REST plug connection."""
+    rest_on_url: str | None = None
+    rest_off_url: str | None = None
+    rest_status_url: str | None = None
+    rest_method: str = "GET"
+    rest_state_on_value: str | None = None
+
+
+@router.post("/rest/test-connection")
+async def test_rest_connection(
+    data: RestTestConnectionRequest,
+    _: User | None = RequirePermissionIfAuthEnabled(Permission.SMART_PLUGS_CONTROL),
+):
+    """Test connection to a REST API smart plug by calling the status URL (or ON URL as fallback)."""
+    result = await rest_plug_service.test_connection(
+        on_url=data.rest_on_url,
+        off_url=data.rest_off_url,
+        status_url=data.rest_status_url,
+        method=data.rest_method,
+        state_on_value=data.rest_state_on_value,
+    )
+    if not result["success"]:
+        raise HTTPException(503, result.get("error", "Failed to connect to device"))
+    return {"success": True, "state": result["state"]}
 
 @router.post("/test-connection")
 async def test_connection(
